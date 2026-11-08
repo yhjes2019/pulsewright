@@ -1,0 +1,14 @@
+{
+  "name": "pulsewright",
+  "version": "1.0.0",
+  "description": "Pulsewright 知识脉冲（Obsidian）：贡献分、年度热力图、知识地层、月相日历、年度画像、知识复盘、笔记地图、笔记洞察、速记、分享卡。纯本地计算，无授权校验。",
+  "main": "main.js",
+  "scripts": {
+    "test": "node tests/kp_test.js ./main.js",
+    "check": "node --check main.js"
+  },
+  "repository": "https://github.com/yhjes2019/pulsewright",
+  "keywords": ["obsidian", "obsidian-plugin", "heatmap", "analytics", "pkm", "local-first"],
+  "license": "MIT",
+  "engines": { "node": ">=18" }
+}

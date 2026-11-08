@@ -1,0 +1,111 @@
+name: Bug 报告
+description: 报告一个可复现的问题（面板显示异常、分数不对、崩溃等）
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。提之前请先确认：把 `main.js` / `manifest.json` / `styles.css` 拷进 `.obsidian/plugins/pulsewright/` 后**重载过插件**，并且问题在新建的空库里也能复现（很多「分数不对」是库里有排除目录或 frontmatter `created` 写错）。
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: 插件版本
+      description: 设置 → 第三方插件 → Pulsewright 那一行显示的版本号
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: obsidian-version
+    attributes:
+      label: Obsidian 版本
+      description: 设置 → 关于 → 当前版本
+      placeholder: "1.15.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 平台
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - iOS
+        - Android
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tab
+    attributes:
+      label: 哪个标签页出问题
+      options:
+        - 看板
+        - 知识地层
+        - 月相日历
+        - 年度画像
+        - 知识复盘
+        - 速记
+        - 数据
+        - 每日明细弹窗
+        - 设置面板
+        - 不是面板问题（安装 / 加载 / 崩溃）
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 描述现象。如果涉及数字不对，请写清「你以为应该是多少，实际显示多少」。
+      placeholder: |
+        例：看板显示今日 0 分，但今天明明新建了 3 篇笔记。
+        预期：应该有 12 分（3 × 4）。
+        实际：0 分。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开插件面板
+        2. 切到「年度画像」
+        3. 点右上角「换画风」
+        4. 面板变成空白
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: 控制台报错（Ctrl+Shift+I → Console）
+      description: 把报错原文贴进来。没有就写「无」。
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充信息
+      description: |
+        库里大概多少篇笔记？有没有改过排除目录 / 数据目录 / 单篇词数上限？
+        **不要贴笔记正文，脱敏后再贴路径。**
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 确认
+      options:
+        - label: 我已在新建的空库里复现过（或确认与库内容无关）
+          required: true
+        - label: 我贴出的内容已脱敏，不含个人路径、库名、笔记正文
+          required: true

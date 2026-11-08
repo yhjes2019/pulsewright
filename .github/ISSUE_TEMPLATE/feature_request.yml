@@ -1,0 +1,62 @@
+name: 功能建议
+description: 提一个改进想法或新面板需求
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提之前先看一眼 [已知限制](https://github.com/yhjes2019/pulsewright#已知限制) 和 [CHANGELOG](https://github.com/yhjes2019/pulsewright/blob/main/CHANGELOG.md)，可能已经在计划里或有意不做。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你现在遇到什么麻烦
+      description: 先说场景，别直接说方案。「我想看 X」不如「我每周复盘时得手动数哪些笔记改了」。
+      placeholder: 例：我想知道哪几篇笔记一个月没碰过，好决定要不要删。
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: 现在怎么凑合解决的
+      description: 如果有变通办法，写出来——有变通办法的需求优先级会低一些。
+    validations:
+      required: false
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你希望的方案
+      description: 具体到「在哪个标签页、看到什么、怎么交互」。
+    validations:
+      required: false
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 影响范围
+      options:
+        - 新增一个标签页
+        - 改现有标签页的展示
+        - 改评分公式或权重
+        - 改设置项
+        - 改导出格式
+        - 安装 / 发布相关
+        - 其他
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: 约束确认
+      description: 这个插件的底线是纯本地、零依赖、可审计。涉及以下任一项的方案需要特别说明理由。
+      options:
+        - label: 我的方案不需要任何网络请求 / 遥测 / 远程配置
+          required: true
+        - label: 我的方案不引入运行时依赖
+          required: false
+        - label: 我愿意提 PR 实现（可选）
+          required: false

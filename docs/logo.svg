@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Pulsewright">
+  <defs>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7c9cff"/>
+      <stop offset="100%" stop-color="#4ecdc4"/>
+    </linearGradient>
+    <linearGradient id="pulse" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#96e6e1"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#12141a"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M395 148 A176 176 0 1 0 320 421" stroke="#7c9cff" stroke-width="34" opacity=".38" filter="url(#soft)"/>
+    <path d="M395 148 A176 176 0 1 0 320 421" stroke="url(#ring)" stroke-width="34"/>
+    <path d="M96 256 L176 256 L205 212 L238 320 L272 166 L301 256 L416 256"
+          stroke="#4ecdc4" stroke-width="24" opacity=".40" filter="url(#soft)"/>
+    <path d="M96 256 L176 256 L205 212 L238 320 L272 166 L301 256 L416 256"
+          stroke="url(#pulse)" stroke-width="24" stroke-linejoin="round"/>
+  </g>
+</svg>
