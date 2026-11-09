@@ -1509,7 +1509,7 @@ function laneAdviceText(it) {
   const st = it.stats;
   const name = (it.lane && it.lane.name) || '';
   let s = name + ' 这条线安静了 ' + st.quietDays + ' 天。';
-  if (st.lastTitle) s += '上一次是 ' + st.lastKey + '，你在改《' + st.lastTitle + '》。';
+  if (st.lastTitle) s += '最后一次是 ' + st.lastKey + '，那篇叫《' + st.lastTitle + '》。';
   else s += '还没有动过的记录。';
   return s;
 }
@@ -2082,14 +2082,9 @@ class PulseView extends ItemView {
 
     const rows = items.map(function (it) {
       const st = laneStatus(it.stats, it.lane);
-      let cells = '';
-      for (let w = 0; w < it.series.length; w += 7) {
-        let wk = '';
-        for (let d = w; d < w + 7 && d < it.series.length; d++) {
-          wk += '<i class="kp-lane-cell' + (it.series[d].hit ? ' is-hit' : '') + '"></i>';
-        }
-        cells += '<span class="kp-lane-week">' + wk + '</span>';
-      }
+      const cells = it.series.map(function (d) {
+        return '<i class="kp-lane-cell' + (d.hit ? ' is-hit' : '') + '"></i>';
+      }).join('');
       return '<div class="kp-lane">'
         + '<div class="kp-lane-name">' + escapeHtml(it.lane.name)
         + (it.lane.perWeek ? '<em>每周 ' + it.lane.perWeek + ' 次</em>' : '')
@@ -2101,9 +2096,13 @@ class PulseView extends ItemView {
 
     const top = laneAdvice(items);
     const ask = top
-      ? '<section class="kp-card kp-lane-ask"><h3>它只想说一句</h3>'
+      ? '<section class="kp-card kp-lane-ask" data-lane-ask="1"><h3>它只想说一句</h3>'
         + '<p>' + escapeHtml(laneAdviceText(top)) + '</p>'
-        + '<p class="kp-hint">要现在给它半小时，还是先记一笔「推迟」？记下来也行，下次就不是忘了。</p></section>'
+        + '<p class="kp-hint">要现在给它半小时，还是先记一笔「推迟到哪天」？写下来比记在脑子里牢。</p>'
+        + '<div class="kp-lane-acts">'
+        + (top.stats.lastPath ? '<button class="kp-btn kp-btn-sm" data-note="' + escapeHtml(top.stats.lastPath) + '">打开那篇</button>' : '')
+        + '<button class="kp-btn kp-btn-sm" data-lane-snooze="' + escapeHtml(top.lane.name) + '">记一笔推迟</button>'
+        + '</div></section>'
       : '';
 
     body.innerHTML = ''
@@ -2121,6 +2120,20 @@ class PulseView extends ItemView {
     if (btn) btn.addEventListener('click', function () {
       self._laneEdit = true;
       self.renderBodyOnly();
+    });
+    body.querySelectorAll('[data-lane-ask] [data-note]').forEach(function (a) {
+      a.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        self.openNote(a.getAttribute('data-note'));
+      });
+    });
+    body.querySelectorAll('[data-lane-snooze]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        const nm = b.getAttribute('data-lane-snooze') || '';
+        b.textContent = '已记下';
+        b.disabled = true;
+        self.plugin.addMemo('推迟：' + nm + ' —— 还欠一次，' + dayKeyToday() + ' 记下');
+      });
     });
   }
 

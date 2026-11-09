@@ -1218,30 +1218,25 @@
 }
 
 .kp-lane-track {
-  display: flex;
-  gap: 5px;
-  height: 14px;
-  align-items: stretch;
-}
-
-.kp-lane-week {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 1px;
-  flex: 1;
+  grid-template-columns: repeat(84, 1fr);
+  gap: 0;
+  height: 12px;
+  align-items: stretch;
+  border-radius: 2px;
+  overflow: hidden;
 }
 
 .kp-lane-cell {
   display: block;
-  height: 14px;
-  border-radius: 1px;
+  height: 12px;
   background: var(--background-modifier-border);
-  opacity: 0.4;
+  opacity: 0.22;
 }
 
 .kp-lane-cell.is-hit {
   background: var(--interactive-accent);
-  opacity: 0.92;
+  opacity: 0.9;
 }
 
 .kp-lane-st {
@@ -1367,6 +1362,12 @@
   margin-top: 8px;
   font-size: 10px;
   color: var(--text-faint);
+}
+
+.kp-lane-acts {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 .kp-lane-edit {
