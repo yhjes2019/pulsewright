@@ -143,7 +143,7 @@
 
 **命令**
 
-- 打开面板、重新扫描、导出 CSV、导出 JSON、速记一条、打开笔记地图（`pulsewright-map`）、打开笔记洞察（`pulsewright-insight`）、速记一条（`pulsewright-memo`）。
+- 打开面板、重新扫描、导出 CSV、导出 JSON、速记一条、打开笔记地图（`map`）、打开笔记洞察（`insight`）、速记一条（`memo`）。
 
 **设置（13 项，按「统计 / 时间 / 评分 / 导出」四组排列）**
 

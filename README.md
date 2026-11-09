@@ -200,13 +200,13 @@ Copy-Item -Recurse .\pulsewright "$env:USERPROFILE\Documents\你的库\.obsidian
 
 | 命令 | 面板上显示 |
 |---|---|
-| `pulsewright:open-pulsewright` | Pulsewright: 打开 Pulsewright 面板 |
-| `pulsewright:rescan-pulsewright` | Pulsewright: 重新扫描知识库 |
-| `pulsewright:export-pulsewright-csv` | Pulsewright: 导出 Pulsewright CSV |
-| `pulsewright:export-pulsewright-json` | Pulsewright: 导出 Pulsewright JSON |
-| `pulsewright:pulsewright-memo` | Pulsewright: 速记一条 |
-| `pulsewright:pulsewright-map` | Pulsewright: 打开笔记地图 |
-| `pulsewright:pulsewright-insight` | Pulsewright: 打开洞察 |
+| `pulsewright:open` | Pulsewright: 打开 Pulsewright 面板 |
+| `pulsewright:rescan` | Pulsewright: 重新扫描知识库 |
+| `pulsewright:export-csv` | Pulsewright: 导出 Pulsewright CSV |
+| `pulsewright:export-json` | Pulsewright: 导出 Pulsewright JSON |
+| `pulsewright:memo` | Pulsewright: 速记一条 |
+| `pulsewright:map` | Pulsewright: 打开笔记地图 |
+| `pulsewright:insight` | Pulsewright: 打开洞察 |
 
 前缀是 `pulsewright:`，因为 `manifest.json` 的 `id` 是这个。
 

@@ -2865,27 +2865,27 @@ class PulsewrightPlugin extends Plugin {
     this.addRibbonIcon('activity', '打开 Pulsewright', function () { this.activateView(); }.bind(this));
 
     this.addCommand({
-      id: 'open-pulsewright',
+      id: 'open',
       name: '打开 Pulsewright 面板',
       callback: function () { this.activateView(); }.bind(this)
     });
     this.addCommand({
-      id: 'rescan-pulsewright',
+      id: 'rescan',
       name: '重新扫描知识库',
       callback: function () { this.rescan(true); }.bind(this)
     });
     this.addCommand({
-      id: 'export-pulsewright-csv',
+      id: 'export-csv',
       name: '导出 Pulsewright CSV',
       callback: function () { this.exportCSV(); }.bind(this)
     });
     this.addCommand({
-      id: 'export-pulsewright-json',
+      id: 'export-json',
       name: '导出 Pulsewright JSON',
       callback: function () { this.exportJSON(); }.bind(this)
     });
     this.addCommand({
-      id: 'pulsewright-memo',
+      id: 'memo',
       name: '速记一条',
       callback: function () {
         this.activateView().then(function (leaf) {
@@ -2899,7 +2899,7 @@ class PulsewrightPlugin extends Plugin {
       }.bind(this)
     });
     this.addCommand({
-      id: 'pulsewright-map',
+      id: 'map',
       name: '打开笔记地图',
       callback: function () {
         this.activateView().then(function (leaf) {
@@ -2912,7 +2912,7 @@ class PulsewrightPlugin extends Plugin {
     });
 
     this.addCommand({
-      id: 'pulsewright-insight',
+      id: 'insight',
       name: '打开洞察',
       callback: function () {
         this.activateView().then(function (leaf) {

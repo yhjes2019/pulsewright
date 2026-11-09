@@ -482,14 +482,14 @@ ok('fmtDur 小时', P.fmtDur(7200) === '2.0 小时');
   plugin.app.workspace.revealLeaf = () => {};
   plugin.app.workspace.getLeaf = () => fakeLeaf;
   await plugin.onload();
-  ok('注册了 pulsewright-memo 命令', !!cmds['pulsewright-memo']);
-  ok('注册了 open-pulsewright 命令', !!cmds['open-pulsewright']);
+  ok('注册了 memo 命令', !!cmds['memo']);
+  ok('注册了 open 命令', !!cmds['open']);
 
   const leafRet = await plugin.activateView();
   ok('activateView 返回 leaf', !!leafRet && leafRet.view === fakeView);
 
-  if (cmds['pulsewright-memo']) {
-    cmds['pulsewright-memo'].callback();
+  if (cmds['memo']) {
+    cmds['memo'].callback();
     await new Promise((r) => setTimeout(r, 0));
     ok('速记命令把视图切到 memo', fakeView.tab === 'memo', String(fakeView.tab));
     ok('速记命令触发了 render', (fakeView.rendered || 0) >= 1, String(fakeView.rendered));
