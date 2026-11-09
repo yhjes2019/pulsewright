@@ -57,7 +57,17 @@ docs: 补 historyDays 死配置说明
 
 ## 版本与发布
 
-版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)：破坏性改动升主版本，新功能升次版本，修 bug 升补丁版本。改版本要同时改 `manifest.json` 与 `package.json` 的 `version`，并在 `CHANGELOG.md` 顶部加条目。维护者会在 GitHub 上打 tag 并发 Release。
+版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)：破坏性改动升主版本，新功能升次版本，修 bug 升补丁版本。改版本要同时改 `manifest.json` 与 `package.json` 的 `version`，并在 `CHANGELOG.md` 顶部加条目。
+
+### 发布检查清单
+
+社区目录的规则和 GitHub 的默认做法有几处不一样，每次发版按这个顺序走：
+
+1. **tag 名不能带 `v` 前缀**，必须和 `manifest.json` 里的 `version` 完全一致。`1.0.2` 对，`v1.0.2` 会被目录判为版本不匹配。
+2. **Release 必须挂三个散文件**：`main.js`、`manifest.json`、`styles.css`（可选但建议挂）。Obsidian 只认这三个，其它附件不会下载。
+3. **Release 正文就是更新说明**。社区插件页不单独维护更新日志，它显示的是 README 全文加一份版本列表，每个版本链到对应的 Release。所以正文要写成「给用户看的更新说明」，不是给开发者看的 commit 摘要。
+4. **同步 README 和 CHANGELOG**。社区页的正文取 README，改了功能就要改 README；`CHANGELOG.md` 是仓库内的存档，两边口径保持一致。
+5. **发布后回读一遍**：Release 是否 `draft: false`、资产是否全部 `uploaded`、社区页的 `Current version` 是否已经跟上（目录有几分钟到几小时的同步延迟）。
 
 ## 许可
 

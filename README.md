@@ -104,7 +104,7 @@ PNG 是拿 canvas 现转的，不用装任何东西。万一某个环境里拿�
 
 ## 装
 
-已经提交 Obsidian 社区市场审核，通过之后可以直接在「设置 → 第三方插件 → 浏览」里搜到。在那之前，手动装也就两步，两种包都在 [Releases](https://github.com/yhjes2019/pulsewright/releases) 里。
+已经上架 Obsidian 社区市场，直接在「设置 → 第三方插件 → 浏览」里搜 `Pulsewright` 就能装。想手动装也行，两种包都在 [Releases](https://github.com/yhjes2019/pulsewright/releases) 里。
 
 **Windows 最省事：跑安装程序。** 下载 `Pulsewright-Setup-1.0.2.exe` 双击。它会读出你机器上所有登记过的库列出来，选一个点「安装到这个库」就完事。列表里没有你的库，就点「浏览其他库…」自己选文件夹。
 
@@ -251,7 +251,7 @@ CSV 的列是 `date,score,words,notes,links,revisions,focus_sec,interact_sec,qua
 1. **实测时长要求插件在线。** 你关掉 Obsidian 之后写的字，那段时间只能估。弹窗里会标「时长估算」，不会假装是实测。
 2. **月相是天文近似。** 用平均朔望月 `29.53058853` 天和参考点 `2000-01-06 18:14 UTC` 推的，不是精确历表。看趋势够用，当农历看不行。
 3. **热力图依赖 `data.json`。** 删了它历史日度统计就没了，得重新扫描。重建之后「新建 / 修订」会按 frontmatter 和 mtime 复算回来，但回不到删除前那一份快照。
-4. **社区市场还在审核。** 过了就能直接搜到装，在那之前手动装或者走 BRAT 都行。
+4. **安装包不会被自动下载。** 社区目录只拉 `main.js`、`manifest.json`、`styles.css` 三个文件，Release 里挂的 `.exe` 和 `.zip` 它不管。想要安装程序得自己去 Releases 页拿。
 5. **单篇 4000 词截断。** 所以词数总量不是真实字数。
 6. **首次扫描会卡一下。** 15 分钟那次自动重扫是全量的，库特别大（几千篇）的话建议关掉 `trackLive`，只用「刷新」按钮手动扫。
 7. **历史保留期裁剪不可逆。** 填了正整数，超出天数的旧数据直接删，不弹确认。想留全量就保持 `0`。
@@ -324,7 +324,7 @@ MIT，全文见 [LICENSE](LICENSE)。
 Copyright (c) 2026 Luo
 ```
 
-大白话：商用、改、再发布、自己留着用，都行，只要保留版权声明和许可证文本。软件按现状提供，不担保。它不是 GPL 也不是「署名-非商业」，没有传播性，你改完可以不开源。
+大白话：商用、改、再发布、自己留着用，都行，只要保留版权声明和许可证文本。软件按现状提供，不担保。它不是 GPL 也不是「署名-非商业」，没有传染性，你改完可以不开源。
 
 ---
 
@@ -376,7 +376,7 @@ Focus time comes from two sources, labelled in the day-detail modal: **measured*
 
 ### Install
 
-**From the community plugin directory:** the listing is under review. Once it is live, open Settings → Community plugins → Browse, search for "Pulsewright", install and enable.
+**From the community plugin directory:** open Settings → Community plugins → Browse, search for "Pulsewright", install and enable.
 
 **Manually:** grab `main.js`, `manifest.json` and `styles.css` from [Releases](https://github.com/yhjes2019/pulsewright/releases) and drop them into `<your-vault>/.obsidian/plugins/pulsewright/`. A Windows installer and a zip are attached to the same release if you prefer those.
 
