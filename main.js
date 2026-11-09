@@ -1747,8 +1747,9 @@ const PURE = {
 /* ---------------- 视图 ---------------- */
 
 const TAB_DEFS = [
+  { id: 'today', name: '今天' },
   { id: 'lanes', name: '惦记' },
-  { id: 'board', name: '今天' },
+  { id: 'board', name: '概览' },
   { id: 'strata', name: '知识地层' },
   { id: 'moon', name: '月相日历' },
   { id: 'year', name: '年度画像' },
@@ -1758,6 +1759,21 @@ const TAB_DEFS = [
   { id: 'memo', name: '速记' },
   { id: 'data', name: '数据' }
 ];
+
+/* 每页开头一句话：这一页是干什么的。看不懂的一律改到看得懂为止。 */
+const PAGE_HINTS = {
+  today: '今天写了多少、最近有没有断、还有一件你现在就能做的事。',
+  lanes: '你自己说要在意的那几件事，横着看是时间，缺一块就是那几天没碰。',
+  board: '全部历史的总量、节奏和热力图。',
+  strata: '每个月写下的东西像沉积岩一样堆起来，越厚说明那个月写得越多。',
+  moon: '把每个月想成一个月亮：亮面是写完的比例，半途而废的月份是残月。',
+  year: '一年一年摆在一起比，看你在哪个月最厚。',
+  review: '把该回头看的笔记挑出来，替你复习。',
+  map: '你的笔记长什么样：孤儿、断链、标签和目录分布。',
+  insight: '写作时辰、相似标题、标签搭配这类不太好一眼看出来的东西。',
+  memo: '随手记一句，不用新建一篇笔记。',
+  data: '所有原始数字都在这里，也能导出。'
+};
 
 const WEEKDAY_CN = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 const MONTH_CN = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
@@ -1791,7 +1807,7 @@ class PulseView extends ItemView {
     super(leaf);
     this.plugin = plugin;
     const vs = (plugin && plugin.data && plugin.data.viewState) || {};
-    this.tab = vs.tab || 'lanes';
+    this.tab = vs.tab || 'today';
     this.range = vs.range || '90';
     this.metric = vs.metric || 'words';
     this.moonMonth = null;
@@ -1905,8 +1921,9 @@ class PulseView extends ItemView {
       this._booted = true;
     }
 
-    const tabs = TAB_DEFS.map(function (t) {
-      return '<button class="kp-tab' + (t.id === this.tab ? ' is-active' : '') + '" data-tab="' + t.id + '">' + t.name + '</button>';
+    const nowName = (TAB_DEFS.filter(function (t) { return t.id === this.tab; }, this)[0] || TAB_DEFS[0]).name;
+    const menuItems = TAB_DEFS.map(function (t) {
+      return '<button class="kp-menu-item' + (t.id === this.tab ? ' is-active' : '') + '" data-tab="' + t.id + '">' + t.name + '</button>';
     }, this).join('');
 
     shell.innerHTML = ''
@@ -1919,7 +1936,11 @@ class PulseView extends ItemView {
       + '    <button class="kp-btn" data-act="rescan" title="重新扫描">刷新</button>'
       + '  </div>'
       + '</header>'
-      + '<nav class="kp-tabs">' + tabs + '</nav>'
+      + '<div class="kp-switch">'
+      + '  <button class="kp-switch-now" data-act="all">' + nowName + '<span class="kp-caret">▾</span></button>'
+      + '  <p class="kp-now-hint"></p>'
+      + '</div>'
+      + '<div class="kp-menu" hidden>' + menuItems + '</div>'
       + '<main class="kp-body"></main>';
 
     this.bindShell(shell);
@@ -1962,11 +1983,24 @@ class PulseView extends ItemView {
 
   bindShell(shell) {
     const self = this;
+    const menu = shell.querySelector('.kp-menu');
+    const allBtn = shell.querySelector('[data-act="all"]');
+    if (allBtn && menu) {
+      allBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        menu.hidden = !menu.hidden;
+        allBtn.classList.toggle('is-open', !menu.hidden);
+      });
+      document.addEventListener('click', function () {
+        if (!menu.hidden) { menu.hidden = true; allBtn.classList.remove('is-open'); }
+      }, { once: false });
+    }
     shell.querySelectorAll('[data-tab]').forEach(function (b) {
       b.addEventListener('click', function () {
         self.tab = b.getAttribute('data-tab');
+        if (menu) menu.hidden = true;
         self.saveViewState();
-        self.renderBodyOnly();
+        self.render();
       });
     });
     const sceneBtn = shell.querySelector('[data-act="scene"]');
@@ -1981,8 +2015,11 @@ class PulseView extends ItemView {
 
   renderTab(body) {
     if (!body) return;
+    const hintEl = this.contentEl.querySelector('.kp-now-hint');
+    if (hintEl) hintEl.textContent = PAGE_HINTS[this.tab] || '';
     body.empty();
     switch (this.tab) {
+      case 'today': this.renderToday(body); break;
       case 'lanes': this.renderLanes(body); break;
       case 'strata': this.renderStrata(body); break;
       case 'moon': this.renderMoon(body); break;
@@ -1993,6 +2030,99 @@ class PulseView extends ItemView {
       case 'memo': this.renderMemo(body); break;
       case 'data': this.renderData(body); break;
       default: this.renderBoard(body);
+    }
+  }
+
+
+  /* ---------- 今天（一屏） ---------- */
+
+  /* 打开只回答三件事：今天怎么样、最近有没有断、现在能做点什么。 */
+  renderToday(body) {
+    const daily = this.daily();
+    const st = streaks(daily);
+    const e = daily[dayKeyToday()] || null;
+    const words = e ? (e.words || 0) : 0;
+    const touched = e && e.touched ? e.touched.length : 0;
+
+    let maxW = 1;
+    Object.keys(daily).forEach(function (k) {
+      const v = daily[k].words || 0;
+      if (v > maxW) maxW = v;
+    });
+    const start = addDays(startOfDay(new Date()), -83);
+    const cells = [];
+    for (let i = 0; i < 84; i++) {
+      const k = dayKeyOf(addDays(start, i).getTime());
+      const v = daily[k] ? (daily[k].words || 0) : 0;
+      const now = i === 83 ? ' is-now' : '';
+      cells.push(v > 0
+        ? '<i class="kp-bd-cell is-on' + now + '" style="opacity:' + (0.34 + (v / maxW) * 0.6).toFixed(2) + '"></i>'
+        : '<i class="kp-bd-cell' + now + '"></i>');
+    }
+
+    const picks = echoPicks((this.plugin.data && this.plugin.data.noteCache) || {}, Date.now(), 1);
+
+    body.innerHTML = ''
+      + '<section class="kp-op">'
+      + '  <p class="kp-op-line">今天写了 <b>' + fmtInt(words) + '</b> 字，动了 <b>' + touched + '</b> 篇，连着 <b>' + st.current + '</b> 天。</p>'
+      + '  <div class="kp-op-band">'
+      + '    <div class="kp-op-band-hd"><span>12 周前</span><span>今天</span></div>'
+      + '    <div class="kp-bd-track">' + cells.join('') + '</div>'
+      + '  </div>'
+      + '</section>'
+      + this.todayCard()
+      + this.echoCard(picks);
+
+    this.bindTodayCard(body);
+    this.fillEcho(body, picks);
+  }
+
+  /* 一屏里唯一一张卡：一篇你很久没打开、但当时写得不少的笔记。 */
+  todayCard() {
+    const seed = parseInt(dayKeyToday().replace(/-/g, ''), 10) || 0;
+    const n = pickReview(this.plugin.data.noteCache || {}, Date.now(), seed);
+    const snoozed = n && this._snoozeDay === dayKeyToday() && this._snoozePath === n.path;
+    if (!n || snoozed) {
+      return '<section class="kp-card kp-today-free">'
+        + '<h3>今天没什么要提醒的</h3>'
+        + '<p class="kp-hint">库里没有「写了 50 词以上、超过 30 天没动」的笔记。换个角度看看，点上面的下拉。</p>'
+        + '</section>';
+    }
+    return '<section class="kp-card kp-today-card" data-today="' + escapeHtml(n.path) + '">'
+      + '  <div class="kp-today-why">这篇你已经 ' + n.days + ' 天没打开了</div>'
+      + '  <h3 class="kp-today-title">' + escapeHtml(n.title) + '</h3>'
+      + '  <p class="kp-today-lead" data-lead="1"></p>'
+      + '  <div class="kp-today-meta">' + dayKeyOf(n.mtime) + ' 写的 · ' + fmtInt(n.words) + ' 词</div>'
+      + '  <div class="kp-today-acts">'
+      + '    <button class="kp-btn kp-btn-p" data-note="' + escapeHtml(n.path) + '">打开接着写</button>'
+      + '    <button class="kp-btn" data-snooze="' + escapeHtml(n.path) + '">先放着</button>'
+      + '  </div>'
+      + '</section>';
+  }
+
+  bindTodayCard(body) {
+    const self = this;
+    const card = body.querySelector('.kp-today-card');
+    if (!card) return;
+    const path = card.getAttribute('data-today');
+    card.querySelectorAll('[data-note]').forEach(function (b) {
+      b.addEventListener('click', function (ev) { ev.preventDefault(); self.openNote(path); });
+    });
+    card.querySelectorAll('[data-snooze]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        self._snoozePath = path;
+        self._snoozeDay = dayKeyToday();
+        self.renderBodyOnly();
+      });
+    });
+    const lead = card.querySelector('[data-lead]');
+    const vault = self.app && self.app.vault;
+    const file = vault ? vault.getAbstractFileByPath(path) : null;
+    if (lead && file) {
+      Promise.resolve(vault.cachedRead(file)).then(function (t) {
+        const one = echoLead(t, 60);
+        if (one) lead.textContent = '「' + one + '」';
+      }).catch(function () { /* 忽略 */ });
     }
   }
 
