@@ -2036,38 +2036,92 @@ class PulseView extends ItemView {
 
   /* ---------- 今天（一屏） ---------- */
 
-  /* 打开只回答三件事：今天怎么样、最近有没有断、现在能做点什么。 */
+  /* 一屏之内把该看的看完：今天怎么样、这周怎么样、最近有没有断、能动手做点什么。 */
   renderToday(body) {
     const daily = this.daily();
     const st = streaks(daily);
-    const e = daily[dayKeyToday()] || null;
+    const today = startOfDay(new Date());
+    const todayKey = dayKeyOf(today.getTime());
+    const e = daily[todayKey] || null;
     const words = e ? (e.words || 0) : 0;
     const touched = e && e.touched ? e.touched.length : 0;
 
+    // 昨天与近七天，用来给数字一个参照
+    const yKey = dayKeyOf(addDays(today, -1).getTime());
+    const yWords = daily[yKey] ? daily[yKey].words || 0 : 0;
+    const diff = words - yWords;
+    let week7 = 0;
+    for (let i = 0; i < 7; i++) {
+      const k = dayKeyOf(addDays(today, -i).getTime());
+      week7 += daily[k] ? daily[k].words || 0 : 0;
+    }
+    const avg7 = Math.round(week7 / 7);
+
+    // 十二周时间带 + 月份刻度
     let maxW = 1;
     Object.keys(daily).forEach(function (k) {
       const v = daily[k].words || 0;
       if (v > maxW) maxW = v;
     });
-    const start = addDays(startOfDay(new Date()), -83);
+    const start = addDays(today, -83);
     const cells = [];
+    const ticks = [];
     for (let i = 0; i < 84; i++) {
-      const k = dayKeyOf(addDays(start, i).getTime());
+      const d = addDays(start, i);
+      const k = dayKeyOf(d.getTime());
       const v = daily[k] ? (daily[k].words || 0) : 0;
       const now = i === 83 ? ' is-now' : '';
       cells.push(v > 0
         ? '<i class="kp-bd-cell is-on' + now + '" style="opacity:' + (0.34 + (v / maxW) * 0.6).toFixed(2) + '"></i>'
         : '<i class="kp-bd-cell' + now + '"></i>');
+      if (d.getDate() === 1) {
+        ticks.push('<span style="grid-column:' + (i + 1) + '">' + (d.getMonth() + 1) + '月</span>');
+      }
     }
 
-    const picks = echoPicks((this.plugin.data && this.plugin.data.noteCache) || {}, Date.now(), 1);
+    // 最近七天七根柱（滚动，最后一根是今天）——周一不会只剩一根
+    const wkBars = [];
+    let wkMax = 1;
+    const wkVals = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = addDays(today, -i);
+      const k = dayKeyOf(d.getTime());
+      const v = daily[k] ? daily[k].words || 0 : 0;
+      wkVals.push(v);
+      if (v > wkMax) wkMax = v;
+    }
+    const WD = ['日', '一', '二', '三', '四', '五', '六'];
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(today, i - 6);
+      const h = Math.round(6 + (wkVals[i] / wkMax) * 40);
+      wkBars.push('<span class="kp-wk-col' + (i === 6 ? ' is-today' : '') + '">'
+        + (wkVals[i] > 0 ? '<i style="height:' + h + 'px"></i>' : '')
+        + '<em>' + (i === 6 ? '今天' : WD[d.getDay()]) + '</em></span>');
+    }
+    const wkSum = wkVals.reduce(function (a, b) { return a + b; }, 0);
+
+    const picks = echoPicks((this.plugin.data && this.plugin.data.noteCache) || {}, Date.now(), 2);
+
+    const sign = diff > 0 ? '+' : '';
+    const cmp = yWords > 0
+      ? '比昨天 ' + sign + fmtInt(diff) + ' 字'
+      : '近七天日均 ' + fmtInt(avg7) + ' 字';
 
     body.innerHTML = ''
       + '<section class="kp-op">'
-      + '  <p class="kp-op-line">今天写了 <b>' + fmtInt(words) + '</b> 字，动了 <b>' + touched + '</b> 篇，连着 <b>' + st.current + '</b> 天。</p>'
+      + '  <div class="kp-op-nums">'
+      + '    <div class="kp-op-num"><b>' + fmtInt(words) + '</b><span>今天写的字</span><em>' + cmp + '</em></div>'
+      + '    <div class="kp-op-num"><b>' + touched + '</b><span>动过的笔记</span><em>近七天日均 ' + fmtInt(avg7) + ' 字</em></div>'
+      + '    <div class="kp-op-num"><b>' + st.current + '</b><span>连续天数</span><em>最长 ' + st.longest + ' 天</em></div>'
+      + '  </div>'
       + '  <div class="kp-op-band">'
-      + '    <div class="kp-op-band-hd"><span>12 周前</span><span>今天</span></div>'
+      + '    <div class="kp-op-band-hd"><span>最近 12 周</span><span>今天</span></div>'
       + '    <div class="kp-bd-track">' + cells.join('') + '</div>'
+      + '    <div class="kp-bd-axis">' + ticks.join('') + '</div>'
+      + '  </div>'
+      + '  <div class="kp-op-week">'
+      + '    <div class="kp-op-week-hd"><span>最近七天</span><em>共 ' + fmtInt(wkSum) + ' 字</em></div>'
+      + '    <div class="kp-wk">' + wkBars.join('') + '</div>'
       + '  </div>'
       + '</section>'
       + this.todayCard()
