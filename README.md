@@ -7,7 +7,7 @@
 <br clear="left" />
 
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![version](https://img.shields.io/badge/version-1.0.1-green.svg)](https://github.com/yhjes2019/pulsewright/releases)
+[![version](https://img.shields.io/badge/version-1.0.2-green.svg)](https://github.com/yhjes2019/pulsewright/releases)
 [![min obsidian](https://img.shields.io/badge/Obsidian-%E2%89%A5%201.6.0-7c3aed.svg)](https://obsidian.md)
 [![tests](https://img.shields.io/badge/tests-228%20passing-brightgreen.svg)](tests/kp_test.js)
 
@@ -104,15 +104,15 @@ PNG 是拿 canvas 现转的，不用装任何东西。万一某个环境里拿�
 
 ## 装
 
-插件还没进 Obsidian 社区市场，所以现在得手动放进库目录。两种包都在 [Releases](https://github.com/yhjes2019/pulsewright/releases) 里。
+已经提交 Obsidian 社区市场审核，通过之后可以直接在「设置 → 第三方插件 → 浏览」里搜到。在那之前，手动装也就两步，两种包都在 [Releases](https://github.com/yhjes2019/pulsewright/releases) 里。
 
-**Windows 最省事：跑安装程序。** 下载 `Pulsewright-Setup-1.0.1.exe` 双击。它会读出你机器上所有登记过的库列出来，选一个点「安装到这个库」就完事。列表里没有你的库，就点「浏览其他库…」自己选文件夹。
+**Windows 最省事：跑安装程序。** 下载 `Pulsewright-Setup-1.0.2.exe` 双击。它会读出你机器上所有登记过的库列出来，选一个点「安装到这个库」就完事。列表里没有你的库，就点「浏览其他库…」自己选文件夹。
 
 装完打开 Obsidian → 设置 → 第三方插件 → 关掉「安全模式 / 受限模式」→ 启用 Pulsewright。如果 Obsidian 本来就开着，`Ctrl + R` 重新加载一下。
 
 安装器没有数字签名，Windows 的 SmartScreen 大概率会拦一下，点「更多信息」→「仍要运行」就行。它只做一件事：把三个文件复制进你选的库的 `.obsidian/plugins/pulsewright/`。不写注册表，不装服务，不改系统设置。
 
-**其他系统：解压压缩包。** 下载 `pulsewright-1.0.1.zip`，解压出一个 `pulsewright` 文件夹，里面是插件本体和一份《安装说明.txt》。然后：
+**其他系统：解压压缩包。** 下载 `pulsewright-1.0.2.zip`，解压出一个 `pulsewright` 文件夹，里面是插件本体和一份《安装说明.txt》。然后：
 
 1. 找到你的库目录，就是放 `.md` 文件的那个文件夹
 2. 进 `.obsidian/plugins/`（没有 `plugins` 就自己建一个）
@@ -251,7 +251,7 @@ CSV 的列是 `date,score,words,notes,links,revisions,focus_sec,interact_sec,qua
 1. **实测时长要求插件在线。** 你关掉 Obsidian 之后写的字，那段时间只能估。弹窗里会标「时长估算」，不会假装是实测。
 2. **月相是天文近似。** 用平均朔望月 `29.53058853` 天和参考点 `2000-01-06 18:14 UTC` 推的，不是精确历表。看趋势够用，当农历看不行。
 3. **热力图依赖 `data.json`。** 删了它历史日度统计就没了，得重新扫描。重建之后「新建 / 修订」会按 frontmatter 和 mtime 复算回来，但回不到删除前那一份快照。
-4. **还没上 Obsidian 社区市场。** 现在只能手动装或者走 BRAT。
+4. **社区市场还在审核。** 过了就能直接搜到装，在那之前手动装或者走 BRAT 都行。
 5. **单篇 4000 词截断。** 所以词数总量不是真实字数。
 6. **首次扫描会卡一下。** 15 分钟那次自动重扫是全量的，库特别大（几千篇）的话建议关掉 `trackLive`，只用「刷新」按钮手动扫。
 7. **历史保留期裁剪不可逆。** 填了正整数，超出天数的旧数据直接删，不弹确认。想留全量就保持 `0`。
@@ -307,7 +307,7 @@ CI 在 `.github/workflows/test.yml`，`ubuntu-latest` + Node 20，跑 `node --ch
 
 ## 版本与环境
 
-当前 `1.0.1`。最低 Obsidian `1.6.0`（`manifest.json` 的 `minAppVersion`）。桌面和移动端都能跑。运行时用的是 Electron 内置的 Node，你本机不需要装 Node——只有想跑测试的时候才需要，`>=18`。
+当前 `1.0.2`。最低 Obsidian `1.6.0`（`manifest.json` 的 `minAppVersion`）。桌面和移动端都能跑。运行时用的是 Electron 内置的 Node，你本机不需要装 Node——只有想跑测试的时候才需要，`>=18`。
 
 零运行时依赖，`package.json` 里没有 `dependencies` 这一节。`main.js` 约 100 KB，`styles.css` 约 21 KB。
 
@@ -329,9 +329,39 @@ Copyright (c) 2026 Luo
 
 ## English
 
-**Pulsewright** is a local-only knowledge dashboard for Obsidian.
+**Pulsewright** is a local-only analytics dashboard for your Obsidian vault. It reads your Markdown files, turns them into a set of numbers about how you have been writing, and draws them. That is the whole job.
 
-It scores your writing days, draws a 52-week knowledge strata chart, a lunar-phase calendar and a yearly portrait, generates weekly retrospectives as Markdown, maps your vault (tag cloud, folder breakdown, orphan notes, broken links, stale notes), profiles how you write (hour-of-week grid, per-note health grades, near-duplicate titles, tag co-occurrence), and keeps a quick-memo pad. Everything is computed on your machine: no network calls, no telemetry, no license gate, no account.
+There is no account, no licence key, no trial, no telemetry, and no network code at all. The plugin's only `require` is `require('obsidian')` — no `fetch`, no `XMLHttpRequest`, no `requestUrl`, no URL string anywhere in `main.js`. It works with the machine offline. Your `.md` files are read, never modified; the only writes go to `data.json` and a `Pulse/` folder inside the vault.
+
+I built it for my own vault after three years of notes, because I could not answer questions like "how much did I actually write this month", "which weeks were completely empty", or "that 3,000-word essay — did I ever open it again". Backlinks and the graph view do not answer those, and the dashboards I tried wanted a sign-up or a licence check first. This one computes locally and then gets out of the way.
+
+### What is in it
+
+Nine tabs, ordered by how often I use them.
+
+**Board** — the landing view. Total score, active days, current and longest streak, focus time, words, new notes, wikilinks, revisions. Below that a year-long heatmap with six switchable metrics, a 30-day trend line, a weekday distribution, and a "heaviest notes" list that links straight to the note. There is also a daily "today's revisit" card that picks one note you wrote at least 50 words in and have not touched for 30+ days; the pick is stable for the day and rotates the next.
+
+**Strata** — the last 52 weeks stacked as a four-layer area chart (words, new notes, wikilinks, revisions). The shape is the point: which weeks collapsed, and whether writing stopped entirely or just the linking did. Each layer is normalised before stacking, otherwise word count flattens the other three into a line.
+
+**Moon** — one moon per day, lit in proportion to that day's output. Near-full means a productive day. You can page through last, current and next month. It is a cosmetic choice over a grid of coloured squares, but after a while you can spot "I stopped for a week in the middle of this month" at a glance.
+
+**Year** — annual total, best day, most active month and weekday, plus a monthly bar chart.
+
+**Review** — this week against last week, four metrics side by side with their deltas. One button generates a Markdown weekly report you can copy or write back into the vault.
+
+**Map** — tag cloud, folder breakdown, orphan notes (nothing links to them), broken links (pointing at headings that do not exist), and stale notes (threshold configurable). Search by title or path. The whole map exports as Markdown into the vault.
+
+**Insight** — this one answers "how do I write" rather than "how much". A 7×24 hour-of-week grid shows whether you are a night owl or a morning person; notes get an A/B/C/D health grade; near-duplicate titles and tag co-occurrence are listed too.
+
+**Memo** — a scratch pad. Type a line, press Enter, it appends to `Pulse/memos.md`. Search, edit in place, delete, export.
+
+**Data** — how many notes are indexed, how many days have records, the current formula, CSV / JSON / full-backup export, index rebuild, and the share card.
+
+Five time ranges: 7 days, 30 days, 90 days, one year, all time. Six heatmap metrics: score, new words, new notes, wikilinks, revisions, deep focus.
+
+### Share card
+
+The bottom of the Data tab exports a 1080×1440 PNG plus a matching SVG into `<data folder>/导出/`, or copies the text to the clipboard (falling back to a `.txt` file when the clipboard is unavailable). The card carries eight numbers: range and end date, total score, active days, new words, new notes, current streak, a daily-rhythm bar chart, and the best day. Not one note title, not one line of body text — what you share is your rhythm, not your content.
 
 ### Scoring
 
@@ -345,7 +375,11 @@ Focus time comes from two sources, labelled in the day-detail modal: **measured*
 
 ### Install
 
-Grab the Windows installer (`Pulsewright-Setup-1.0.1.exe`) or the zip from [Releases](https://github.com/yhjes2019/pulsewright/releases), or clone and copy:
+**From the community plugin directory:** the listing is under review. Once it is live, open Settings → Community plugins → Browse, search for "Pulsewright", install and enable.
+
+**Manually:** grab `main.js`, `manifest.json` and `styles.css` from [Releases](https://github.com/yhjes2019/pulsewright/releases) and drop them into `<your-vault>/.obsidian/plugins/pulsewright/`. A Windows installer and a zip are attached to the same release if you prefer those.
+
+**From source:**
 
 ```bash
 git clone https://github.com/yhjes2019/pulsewright.git
@@ -354,16 +388,22 @@ cp -r pulsewright <your-vault>/.obsidian/plugins/pulsewright
 
 Then enable **Pulsewright** in Settings → Community plugins. Requires Obsidian **1.6.0+**; works on desktop and mobile (`isDesktopOnly: false`). Also installable via [BRAT](https://github.com/TfTHacker/obsidian42-brat) using `yhjes2019/pulsewright`.
 
+### Settings
+
+Thirteen options, all in the plugin's own settings tab: data folder, live tracking, session gap, daily score cap, words per note cap, history retention, stale threshold, the four scoring weights, frontmatter fields to exclude, excluded folders, and whether exports include settings or memos.
+
 ### Privacy
 
 - No network: the only `require` in `main.js` is `require('obsidian')`; there is no `fetch`, `XMLHttpRequest`, `requestUrl`, or any URL.
 - No upload, no telemetry, no crash reporting.
 - Your `.md` files are read-only to this plugin. Writes go only to `data.json` and the `Pulse/` data folder.
 - No license verification, no device fingerprint, no trial period.
+- Clipboard use is write-only, in two places: copying the share text and copying an exported report. Nothing is ever read from the clipboard.
+- Vault enumeration is inherent to the feature set — computing per-folder and per-tag breakdowns requires listing the files. Paths never leave the machine.
 
 ### Known limitations
 
-Measured time needs the plugin running, so edits made while Obsidian is closed can only be estimated. Lunar phases use an average synodic month (`29.53058853` days) rather than an ephemeris. History retention is destructive once you set a non-zero day count. The "heaviest notes" ranking is a heuristic on words and wikilinks. Not yet in the Obsidian community marketplace.
+Measured time needs the plugin running, so edits made while Obsidian is closed can only be estimated. Lunar phases use an average synodic month (`29.53058853` days) rather than an ephemeris. History retention is destructive once you set a non-zero day count. The "heaviest notes" ranking is a heuristic on words and wikilinks. The moon calendar and the hour grid are both approximations of "effort" — they measure output, not thinking.
 
 ### Development
 
@@ -371,6 +411,8 @@ Measured time needs the plugin running, so edits made while Obsidian is closed c
 npm test       # 228 unit tests against a fake obsidian module
 npm run check  # node --check main.js
 ```
+
+The plugin is dependency-free: `main.js` is plain JavaScript with no build step, no bundler and no runtime packages. Tests run against a hand-written fake `obsidian` module injected through `Module._load`, so no Obsidian install is needed.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) and [SECURITY.md](SECURITY.md).
 

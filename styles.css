@@ -79,27 +79,20 @@
   align-items: center;
 }
 
-.kp-logo {
-  font-size: 30px;
-  line-height: 1;
-  color: var(--kp-accent);
-  text-shadow: 0 0 18px rgba(124, 156, 255, 0.45);
-  animation: kp-breathe 4.5s ease-in-out infinite;
-}
-
-@keyframes kp-breathe {
-  0%, 100% { opacity: 0.72; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.06); }
-}
-
 /* 内联品牌标记：呼吸感只做透明度、不做缩放，
- * 免得被父级 overflow 裁掉边角。 */
+ * 免得被父级 overflow 裁掉边角。
+ * 动画只在「允许动效」时声明，减弱动效时它压根不参与匹配。 */
 .kp-mark {
   display: block;
   flex: 0 0 auto;
   width: 38px;
   height: 38px;
-  animation: kp-mark-breathe 4.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kp-mark {
+    animation: kp-mark-breathe 4.5s ease-in-out infinite;
+  }
 }
 
 @keyframes kp-mark-breathe {
@@ -1098,42 +1091,44 @@
 /* 首屏入场：头部上浮 → 品牌标记描边生长 → 页签错峰 → 正文卡片依次浮现。
  * .kp-boot 只在每个视图实例第一次渲染时挂上，入场结束后由 playBoot() 摘掉，
  * 这样 will-change 与动画层不会长期驻留。 */
-.kp-boot .kp-head {
-  animation: kp-in-up 460ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-  will-change: opacity, transform;
-}
+@media (prefers-reduced-motion: no-preference) {
+  .kp-boot .kp-head {
+    animation: kp-in-up 460ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    will-change: opacity, transform;
+  }
 
-.kp-boot .kp-brand h2,
-.kp-boot .kp-brand-slogan {
-  animation: kp-in-fade 420ms cubic-bezier(0.22, 0.61, 0.36, 1) 90ms both;
-  will-change: opacity, transform;
-}
+  .kp-boot .kp-brand h2,
+  .kp-boot .kp-brand-slogan {
+    animation: kp-in-fade 420ms cubic-bezier(0.22, 0.61, 0.36, 1) 90ms both;
+    will-change: opacity, transform;
+  }
 
-/* pathLength="1" 把两条路径归一化，dashoffset 1 → 0 就是「一笔画出来」。
- * 只有 38×38 的一块重绘，代价可以忽略。 */
-.kp-boot .kp-mark .kp-mark-ring {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: kp-draw 760ms cubic-bezier(0.33, 0, 0.2, 1) 60ms forwards;
-}
+  /* pathLength="1" 把两条路径归一化，dashoffset 1 → 0 就是「一笔画出来」。
+   * 只有 38×38 的一块重绘，代价可以忽略。 */
+  .kp-boot .kp-mark .kp-mark-ring {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: kp-draw 760ms cubic-bezier(0.33, 0, 0.2, 1) 60ms forwards;
+  }
 
-.kp-boot .kp-mark .kp-mark-pulse {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: kp-draw 600ms cubic-bezier(0.33, 0, 0.2, 1) 400ms forwards;
-}
+  .kp-boot .kp-mark .kp-mark-pulse {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: kp-draw 600ms cubic-bezier(0.33, 0, 0.2, 1) 400ms forwards;
+  }
 
-.kp-boot .kp-tab {
-  animation: kp-in-fade 320ms ease-out both;
-  animation-delay: var(--kp-in-delay, 120ms);
-  will-change: opacity, transform;
-}
+  .kp-boot .kp-tab {
+    animation: kp-in-fade 320ms ease-out both;
+    animation-delay: var(--kp-in-delay, 120ms);
+    will-change: opacity, transform;
+  }
 
-.kp-boot .kp-body > *,
-.kp-boot .kp-body .kp-kpi {
-  animation: kp-in-fade 380ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
-  animation-delay: var(--kp-in-delay, 260ms);
-  will-change: opacity, transform;
+  .kp-boot .kp-body > *,
+  .kp-boot .kp-body .kp-kpi {
+    animation: kp-in-fade 380ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    animation-delay: var(--kp-in-delay, 260ms);
+    will-change: opacity, transform;
+  }
 }
 
 @keyframes kp-in-up {
@@ -1158,16 +1153,19 @@
 }
 
 /* .kp-chip 原来用 transition: all，会把 background/border/color/padding
- * 全部纳入观察，改成只过渡真正会变的三项。 */
-.kp-chip {
-  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
-}
+ * 全部纳入观察，改成只过渡真正会变的三项。
+ * 过渡同样只在允许动效时声明。 */
+@media (prefers-reduced-motion: no-preference) {
+  .kp-chip {
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
 
-.kp-btn,
-.kp-tab {
-  transition-property: color, background-color, border-color, box-shadow, transform;
-  transition-duration: 0.15s;
-  transition-timing-function: ease;
+  .kp-btn,
+  .kp-tab {
+    transition-property: color, background-color, border-color, box-shadow, transform;
+    transition-duration: 0.15s;
+    transition-timing-function: ease;
+  }
 }
 
 /* 键盘聚焦时才画描边，鼠标点击不出现多余的框。 */
@@ -1178,37 +1176,6 @@
   outline-offset: 2px;
 }
 
-/* 系统级「减弱动态效果」：入场、呼吸、过渡全部归零，
- * 但保留最终可见状态（opacity 1 / 无位移 / 描边完整）。 */
-@media (prefers-reduced-motion: reduce) {
-  .kp-boot .kp-head,
-  .kp-boot .kp-brand h2,
-  .kp-boot .kp-brand-slogan,
-  .kp-boot .kp-tab,
-  .kp-boot .kp-body > *,
-  .kp-boot .kp-body .kp-kpi {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-    will-change: auto !important;
-  }
-
-  .kp-boot .kp-mark .kp-mark-ring,
-  .kp-boot .kp-mark .kp-mark-pulse {
-    animation: none !important;
-    stroke-dashoffset: 0 !important;
-  }
-
-  .kp-logo,
-  .kp-mark {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-
-  .kp-btn,
-  .kp-tab,
-  .kp-chip {
-    transition: none !important;
-  }
-}
+/* 「减弱动态效果」下不需要覆盖块：上面所有动效声明都写在
+ * @media (prefers-reduced-motion: no-preference) 里，系统开启减弱时
+ * 它们根本不参与匹配，最终呈现的就是静态、完整可见的样子。 */

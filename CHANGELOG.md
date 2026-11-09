@@ -2,6 +2,33 @@
 
 本文件记录 Pulsewright 的所有值得注意的变更。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.0.2] - 2026-11-09
+
+为了进 Obsidian 社区市场做的一轮合规整改。功能没有变化，改的是那些会让审核卡住、或者让装插件的人犯嘀咕的地方。
+
+### 改进
+
+- **命令 ID 去掉插件前缀**：七条命令从 `open-pulsewright` / `rescan-pulsewright` / `export-pulsewright-csv` / `export-pulsewright-json` / `pulsewright-memo` / `pulsewright-map` / `pulsewright-insight` 改为 `open` / `rescan` / `export-csv` / `export-json` / `memo` / `map` / `insight`。Obsidian 自己会补上 `pulsewright:` 前缀，ID 里再带一遍插件名属于重复。
+- **清单名称改为纯英文**：`manifest.json` 的 `name` 从「Pulsewright · 知识脉冲」改为 `Pulsewright`。社区目录里一万多个插件的名称没有一个是非 ASCII 的，跟着这个惯例走，搜索结果和列表里也不会出现字体缺字。
+- **描述以半角句号结尾**：`description` 末尾的中文句号换成 `.`，符合目录的格式检查。
+- **README 补了完整的英文介绍**：原来只有安装、隐私、已知问题三段英文，现在补上「这是什么」、九个页签各做什么、分享卡、计分方式、十三项设置。社区目录以英语为主，光有中文正文会被判成「没有英文内容」。
+
+### 修复
+
+- **样式表里 10 处 `!important` 全部清掉**：原来的做法是「检测到系统开了减弱动效，就用 `!important` 把所有动画覆盖成 `none`」。现在改成反过来写——动效声明本身放进 `@media (prefers-reduced-motion: no-preference)`，系统要求减弱动效时那段规则根本不匹配，自然不需要覆盖，也就没有 `!important` 可写。
+- **删掉两段死代码**：`.kp-logo` 与 `@keyframes kp-breathe` 是 1.0.0 的遗留，品牌标记换成 SVG 之后就没人引用了。
+
+### 技术细节
+
+- 新增 `package-lock.json`（`lockfileVersion: 3`，零依赖，只有根包一条）。没有锁文件时目录的构建验证跑不起来，也没法复现字节级一致的产物。
+- `styles.css` 从 25566 字符降到 24960，删掉的是死代码与整个 `!important` 覆盖块。
+- 单元测试仍是 **228** 项全绿，功能行为未变。
+
+### 说明
+
+- **升级后快捷键需要重绑**：如果你给旧命令 ID 设过快捷键，Obsidian 里会显示成一条失效绑定，删掉重设即可，命令本身都在。
+- 从这一版起，GitHub 的 tag 名不带 `v` 前缀（`1.0.2` 而不是 `v1.0.2`）。社区目录按 `manifest.json` 的版本号精确匹配 Release 的 tag，带前缀会匹配不上。
+
 ## [1.0.1] - 2026-11-09
 
 仪式感与流畅度。插件打开时不再是「啪」地一次贴上来，安装包也不再是一个瞬间出现的方框；同时把切页签、翻月翻年、搜速记这些高频操作从整页重绘降为只重绘正文。
