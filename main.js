@@ -1879,6 +1879,11 @@ class PulseView extends ItemView {
     if (!this.contentEl || !this.contentEl.isConnected) return;
     const sig = this.signature();
     if (sig && sig === this._lastSig) return;
+    /* 数据变了只需要换正文。整壳重建会把滚动位置清零、把菜单收起来，
+     * 库里有文件在动的时候等于每隔几秒把读者踹回顶部。 */
+    const shell = this.contentEl.querySelector('.kp-shell');
+    const body = shell && shell.querySelector('.kp-body');
+    if (body && typeof body.empty === 'function') { this.renderBodyOnly(); return; }
     this.render();
   }
 
@@ -1899,7 +1904,11 @@ class PulseView extends ItemView {
         else b.classList.remove('is-active');
       });
     }
+    const keepTop = body.scrollTop || 0;
+    this._skipIn = true;
     this.renderTab(body);
+    this._skipIn = false;
+    if (keepTop) body.scrollTop = keepTop;
     this._lastSig = this.signature();
   }
 
@@ -2060,8 +2069,10 @@ class PulseView extends ItemView {
       case 'data': this.renderData(body); break;
       default: this.renderBoard(body);
     }
-    void body.offsetWidth;
-    body.classList.add('kp-page-in');
+    if (!this._skipIn) {
+      void body.offsetWidth;
+      body.classList.add('kp-page-in');
+    }
   }
 
 
@@ -3488,7 +3499,7 @@ class PulseSettingTab extends PluginSettingTab {
         dd.onChange(async function (v) {
           this.plugin.settings.sceneStyle = v;
           await this.plugin.saveSettings();
-          this.plugin.refreshViews();
+          this.plugin.refreshViews(true);
         }.bind(this));
       }.bind(this));
 
@@ -3503,7 +3514,7 @@ class PulseSettingTab extends PluginSettingTab {
         dd.onChange(async function (v) {
           this.plugin.settings.materialStyle = v;
           await this.plugin.saveSettings();
-          this.plugin.refreshViews();
+          this.plugin.refreshViews(true);
         }.bind(this));
       }.bind(this));
 
@@ -3867,10 +3878,12 @@ class PulsewrightPlugin extends Plugin {
     }
   }
 
-  refreshViews() {
+  refreshViews(full) {
     this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(function (leaf) {
       const v = leaf.view;
-      if (v && typeof v.refresh === 'function') v.refresh();
+      if (!v) return;
+      if (full && typeof v.render === 'function' && v.contentEl && v.contentEl.isConnected) { v.render(); return; }
+      if (typeof v.refresh === 'function') v.refresh();
     });
   }
 
