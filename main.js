@@ -39,6 +39,8 @@ const DEFAULT_SETTINGS = {
   staleDays: 90,
   /* 「惦记」里逐行配置的几条线：名称 | 匹配 | 每周几次。 */
   lanesText: '',
+  /* 面板材质：solid 实心 / frosted 毛玻璃 / acrylic 亚克力。 */
+  materialStyle: 'solid',
   exportIncludeSettings: false,
   includeMemosInBackup: false,
   settingsVersion: SETTINGS_VERSION
@@ -1920,7 +1922,8 @@ class PulseView extends ItemView {
     el.empty();
     el.addClass('kp-root');
     const scene = (this.plugin.settings.sceneStyle || 'pixel');
-    const shell = el.createDiv({ cls: 'kp-shell kp-scene-' + scene });
+    const mat = (this.plugin.settings.materialStyle || 'solid');
+    const shell = el.createDiv({ cls: 'kp-shell kp-scene-' + scene + ' kp-mat-' + mat });
 
     /* 首屏才播入场动画：切页签、刷新数据都不重播，避免每次操作都闪一下。 */
     const boot = !this._booted;
@@ -3484,6 +3487,21 @@ class PulseSettingTab extends PluginSettingTab {
         dd.setValue(this.plugin.settings.sceneStyle || 'pixel');
         dd.onChange(async function (v) {
           this.plugin.settings.sceneStyle = v;
+          await this.plugin.saveSettings();
+          this.plugin.refreshViews();
+        }.bind(this));
+      }.bind(this));
+
+    new Setting(containerEl)
+      .setName('面板材质')
+      .setDesc('卡片和菜单的表面质感。实心最稳，毛玻璃透出一点背景，亚克力更厚也更亮。')
+      .addDropdown(function (dd) {
+        dd.addOption('solid', '实心（默认）');
+        dd.addOption('frosted', '毛玻璃');
+        dd.addOption('acrylic', '亚克力');
+        dd.setValue(this.plugin.settings.materialStyle || 'solid');
+        dd.onChange(async function (v) {
+          this.plugin.settings.materialStyle = v;
           await this.plugin.saveSettings();
           this.plugin.refreshViews();
         }.bind(this));
