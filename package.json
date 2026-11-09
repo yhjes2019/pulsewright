@@ -1,6 +1,6 @@
 {
   "name": "pulsewright",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Pulsewright 知识脉冲（Obsidian）：贡献分、年度热力图、知识地层、月相日历、年度画像、知识复盘、笔记地图、笔记洞察、速记、分享卡。纯本地计算，无授权校验。",
   "main": "main.js",
   "scripts": {

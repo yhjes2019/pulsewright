@@ -9,9 +9,9 @@
 <br clear="left" />
 
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![version](https://img.shields.io/badge/version-1.0.0-green.svg)](https://github.com/yhjes2019/pulsewright/releases)
+[![version](https://img.shields.io/badge/version-1.0.1-green.svg)](https://github.com/yhjes2019/pulsewright/releases)
 [![min obsidian](https://img.shields.io/badge/Obsidian-%E2%89%A5%201.6.0-7c3aed.svg)](https://obsidian.md)
-[![tests](https://img.shields.io/badge/tests-210%20passing-brightgreen.svg)](tests/kp_test.js)
+[![tests](https://img.shields.io/badge/tests-228%20passing-brightgreen.svg)](tests/kp_test.js)
 [![no network](https://img.shields.io/badge/network-none-lightgrey.svg)](#数据与隐私约定)
 [![no license gate](https://img.shields.io/badge/license%20gate-none-lightgrey.svg)](#数据与隐私约定)
 
@@ -123,7 +123,7 @@ PNG 是 Obsidian 里用 canvas 现场转出来的，不用装任何东西；万�
 
 ### 方式一：运行安装程序（Windows，最省事）
 
-下载 **`Pulsewright-Setup-1.0.0.exe`**，双击运行。它会自动读出你电脑上所有 Obsidian 笔记库并列出来，选中一个点「安装到这个库」就装好了。列表里没有你的库，就点「浏览其他库…」自己选文件夹。
+下载 **`Pulsewright-Setup-1.0.1.exe`**，双击运行。它会自动读出你电脑上所有 Obsidian 笔记库并列出来，选中一个点「安装到这个库」就装好了。列表里没有你的库，就点「浏览其他库…」自己选文件夹。
 
 装完打开 Obsidian → 设置 → 第三方插件 → 关掉「安全模式 / 受限模式」→ 启用 **Pulsewright**。Obsidian 已经开着的话按 `Ctrl + R` 重新加载。
 
@@ -131,7 +131,7 @@ PNG 是 Obsidian 里用 canvas 现场转出来的，不用装任何东西；万�
 
 ### 方式二：解压压缩包（Windows / macOS 通用）
 
-下载 **`pulsewright-1.0.0.zip`**，解压得到一个 `pulsewright` 文件夹，里面是插件本体和一份《安装说明.txt》。
+下载 **`pulsewright-1.0.1.zip`**，解压得到一个 `pulsewright` 文件夹，里面是插件本体和一份《安装说明.txt》。
 
 1. 打开你的笔记库目录（就是放 `.md` 文件的那个文件夹）。
 2. 进 `.obsidian/plugins/`（没有 `plugins` 就自己新建一个）。
@@ -271,7 +271,7 @@ Copy-Item -Recurse .\pulsewright "$env:USERPROFILE\Documents\你的库\.obsidian
 
 | 项 | 值 |
 |---|---|
-| 插件版本 | `1.0.0` |
+| 插件版本 | `1.0.1` |
 | 最低 Obsidian 版本 | `1.6.0`（`manifest.json` 的 `minAppVersion`） |
 | 桌面/移动 | `isDesktopOnly: false`，桌面与移动端都能跑（面板在窄屏下会折行） |
 | 运行时 | Electron 内置 Node，**不需要**你本机装 Node |
@@ -328,7 +328,7 @@ CSV 带 UTF-8 BOM，Excel 直接开；JSON 是完整结构，自己写脚本转�
 ## 开发
 
 ```bash
-npm test      # 210 项单元测试，用 fake obsidian 模块跑纯函数与生命周期
+npm test      # 228 项单元测试，用 fake obsidian 模块跑纯函数与生命周期
 npm run check # node --check 语法检查
 ```
 
@@ -410,7 +410,7 @@ Then enable **Pulsewright** in Settings → Community plugins. Requires Obsidian
 
 | Item | Value |
 |---|---|
-| Version | `1.0.0` |
+| Version | `1.0.1` |
 | Min Obsidian | `1.6.0` |
 | Mobile | supported (`isDesktopOnly: false`) |
 | Runtime dependencies | none |
@@ -424,7 +424,7 @@ Measured time needs the plugin running (edits made while Obsidian is closed can 
 ### Development
 
 ```bash
-npm test       # 210 unit tests against a fake obsidian module
+npm test       # 228 unit tests against a fake obsidian module
 npm run check  # node --check main.js
 ```
 

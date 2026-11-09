@@ -1223,6 +1223,8 @@ function weeklyMarkdown(daily, startDate) {
  * 直接用内联 SVG 画，不额外加载图片，深色/浅色主题都能自适应。 */
 function brandMarkSvg(size) {
   const s = size || 34;
+  /* pathLength="1" 把两条 path 的长度归一到 1，入场时用 dashoffset 1→0 描出来，
+   * 不必手算弧长；Chromium 支持 SVG2 的 pathLength。 */
   return '<svg class="kp-mark" width="' + s + '" height="' + s + '" viewBox="0 0 512 512" aria-hidden="true" focusable="false">'
     + '<defs>'
     + '<linearGradient id="kpMarkRing" x1="0" y1="0" x2="1" y2="1">'
@@ -1230,9 +1232,45 @@ function brandMarkSvg(size) {
     + '<linearGradient id="kpMarkPulse" x1="0" y1="0" x2="1" y2="0">'
     + '<stop offset="0" stop-color="#96e6e1"/><stop offset="1" stop-color="#ffffff"/></linearGradient>'
     + '</defs>'
-    + '<path d="M395 148 A176 176 0 1 0 320 421" fill="none" stroke="url(#kpMarkRing)" stroke-width="34" stroke-linecap="round"/>'
-    + '<path d="M96 256 L176 256 L205 212 L238 320 L272 166 L301 256 L416 256" fill="none" stroke="url(#kpMarkPulse)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<path class="kp-mark-ring" pathLength="1" d="M395 148 A176 176 0 1 0 320 421" fill="none" stroke="url(#kpMarkRing)" stroke-width="34" stroke-linecap="round"/>'
+    + '<path class="kp-mark-pulse" pathLength="1" d="M96 256 L176 256 L205 212 L238 320 L272 166 L301 256 L416 256" fill="none" stroke="url(#kpMarkPulse)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>'
     + '</svg>';
+}
+
+/* 错峰延迟：第 i 个元素等 base + i*step 毫秒，封顶 cap。返回整数毫秒。 */
+function introDelay(i, step, base, cap) {
+  const v = (base || 0) + (i || 0) * (step || 0);
+  const limit = typeof cap === 'number' ? cap : 600;
+  if (!isFinite(v)) return 0;
+  return Math.max(0, Math.min(limit, Math.round(v)));
+}
+
+/* 视图指纹：数据没变就不重建 DOM。
+ * 只累加会改变画面的数字，避免整棵 daily 深比较；浮点先乘 100 取整。 */
+function viewSignature(o) {
+  o = o || {};
+  const d = o.daily || {};
+  const keys = Object.keys(d);
+  let score = 0, words = 0, notes = 0, links = 0, rev = 0, focus = 0, live = 0;
+  for (let i = 0; i < keys.length; i++) {
+    const e = d[keys[i]] || {};
+    score += e.score || 0;
+    words += e.words || 0;
+    notes += e.notes || 0;
+    links += e.links || 0;
+    rev += e.revisions || 0;
+    focus += e.focusSec || 0;
+    if (e.live) live++;
+  }
+  const nc = o.noteCache ? Object.keys(o.noteCache).length : 0;
+  const memos = Array.isArray(o.memos) ? o.memos.length : 0;
+  return [
+    o.tab || '', o.range || '', o.metric || '', o.scene || '',
+    keys.length,
+    Math.round(score * 100) / 100,
+    words, notes, links, rev, Math.round(focus * 100) / 100, live,
+    nc, memos, o.settingsVersion || 0
+  ].join('|');
 }
 
 /* 分享卡：1080×1440（3:4）竖图，纯 SVG 字符串，可直接存盘或转 PNG。
@@ -1399,6 +1437,8 @@ const PURE = {
   similarNotes: similarNotes,
   tagPairs: tagPairs,
   brandMarkSvg: brandMarkSvg,
+  introDelay: introDelay,
+  viewSignature: viewSignature,
   shareCardSvg: shareCardSvg,
   shareText: shareText,
   DEFAULT_SETTINGS: DEFAULT_SETTINGS,
@@ -1455,6 +1495,14 @@ class PulseView extends ItemView {
     this.metric = vs.metric || 'score';
     this.moonMonth = null;
     this.reviewWeek = null;
+    /* 首屏仪式感：只在每个视图实例第一次渲染时播一次，之后切页签不重播。 */
+    this._booted = false;
+    /* 渲染指纹：refresh() 用它短路掉数据没变的重建，避免无谓重绘。 */
+    this._lastSig = '';
+    this._countRaf = 0;
+    /* 搜索框输入用 rAF 合并重绘，避免逐键重建正文。 */
+    this._memoRaf = 0;
+    this._mapRaf = 0;
   }
 
   /* 把当前视图状态写回 data.json，下次打开还是这一页。 */
@@ -1480,9 +1528,52 @@ class PulseView extends ItemView {
 
   async onClose() { }
 
+  /* 数据指纹：refresh 被高频调用（每次保存、每次扫描完），
+   * 内容没变就直接跳过整棵 DOM 重建，避免无谓重排。 */
+  signature() {
+    try {
+      const p = this.plugin;
+      return viewSignature({
+        daily: (p.data && p.data.daily) || {},
+        noteCache: p.data && p.data.noteCache,
+        memos: p.data && p.data.memos,
+        tab: this.tab,
+        range: this.range,
+        metric: this.metric,
+        scene: p.settings && p.settings.sceneStyle,
+        settingsVersion: p.settings && p.settings.settingsVersion
+      });
+    } catch (e) {
+      return '';
+    }
+  }
+
   refresh() {
     if (!this.contentEl || !this.contentEl.isConnected) return;
+    const sig = this.signature();
+    if (sig && sig === this._lastSig) return;
     this.render();
+  }
+
+  /* 只重绘正文：切页签、改范围/指标、翻月翻年翻周、速记增删改这些操作
+   * 只影响 .kp-body，header、品牌 SVG、九个页签按钮都不必重建。
+   * 省掉一次整壳 innerHTML 解析 + 全部事件重绑，交互帧更稳。
+   * 换画风（改 shell 的 class）和「刷新」按钮（要复位按钮文案）仍走整壳 render()。 */
+  renderBodyOnly() {
+    const shell = this.contentEl && this.contentEl.querySelector('.kp-shell');
+    const body = shell && shell.querySelector('.kp-body');
+    if (!body || typeof body.empty !== 'function') { this.render(); return; }
+    const self = this;
+    /* 页签高亮只切类名，不重建按钮节点。 */
+    if (typeof shell.querySelectorAll === 'function') {
+      shell.querySelectorAll('[data-tab]').forEach(function (b) {
+        if (!b.classList) return;
+        if (b.getAttribute('data-tab') === self.tab) b.classList.add('is-active');
+        else b.classList.remove('is-active');
+      });
+    }
+    this.renderTab(body);
+    this._lastSig = this.signature();
   }
 
   data() { return this.plugin.data; }
@@ -1506,6 +1597,13 @@ class PulseView extends ItemView {
     const scene = (this.plugin.settings.sceneStyle || 'pixel');
     const shell = el.createDiv({ cls: 'kp-shell kp-scene-' + scene });
 
+    /* 首屏才播入场动画：切页签、刷新数据都不重播，避免每次操作都闪一下。 */
+    const boot = !this._booted;
+    if (boot) {
+      shell.addClass('kp-boot');
+      this._booted = true;
+    }
+
     const tabs = TAB_DEFS.map(function (t) {
       return '<button class="kp-tab' + (t.id === this.tab ? ' is-active' : '') + '" data-tab="' + t.id + '">' + t.name + '</button>';
     }, this).join('');
@@ -1525,6 +1623,40 @@ class PulseView extends ItemView {
 
     this.bindShell(shell);
     this.renderTab(shell.querySelector('.kp-body'));
+
+    this._lastSig = this.signature();
+    if (boot) this.playBoot();
+  }
+
+  /* 入场动画的第二段：页签错峰、正文卡片依次浮现。
+   * 全走 CSS 变量 + opacity/transform，不碰布局属性；
+   * 系统开了「减弱动态效果」时 CSS 媒体查询会把时长压到 0，这里不用特判。 */
+  playBoot() {
+    const shell = this.contentEl && this.contentEl.querySelector('.kp-shell');
+    if (!shell || typeof shell.querySelectorAll !== 'function') return;
+    try {
+      shell.querySelectorAll('.kp-tab').forEach(function (b, i) {
+        if (b.style && b.style.setProperty) b.style.setProperty('--kp-in-delay', introDelay(i, 26, 120, 520) + 'ms');
+      });
+      const body = shell.querySelector('.kp-body');
+      if (body && typeof body.querySelectorAll === 'function') {
+        body.querySelectorAll('.kp-card, .kp-kpi, .kp-section').forEach(function (n, i) {
+          if (n.style && n.style.setProperty) n.style.setProperty('--kp-in-delay', introDelay(i, 40, 260, 900) + 'ms');
+        });
+      }
+    } catch (e) {
+      console.error('[pulsewright] playBoot failed', e);
+    }
+
+    /* 入场跑完就摘掉 .kp-boot：动画层与 will-change 不长期驻留，
+     * 后续滚动、切页签都是纯静态渲染，帧率不受影响。 */
+    const self = this;
+    if (this._bootTimer) window.clearTimeout(this._bootTimer);
+    this._bootTimer = window.setTimeout(function () {
+      self._bootTimer = 0;
+      const s = self.contentEl && self.contentEl.querySelector('.kp-shell');
+      if (s && s.classList && s.classList.remove) s.classList.remove('kp-boot');
+    }, 1600);
   }
 
   bindShell(shell) {
@@ -1533,7 +1665,7 @@ class PulseView extends ItemView {
       b.addEventListener('click', function () {
         self.tab = b.getAttribute('data-tab');
         self.saveViewState();
-        self.render();
+        self.renderBodyOnly();
       });
     });
     const sceneBtn = shell.querySelector('[data-act="scene"]');
@@ -1696,10 +1828,10 @@ class PulseView extends ItemView {
   bindBoard(body) {
     const self = this;
     body.querySelectorAll('[data-range]').forEach(function (b) {
-      b.addEventListener('click', function () { self.range = b.getAttribute('data-range'); self.saveViewState(); self.render(); });
+      b.addEventListener('click', function () { self.range = b.getAttribute('data-range'); self.saveViewState(); self.renderBodyOnly(); });
     });
     body.querySelectorAll('[data-metric]').forEach(function (b) {
-      b.addEventListener('click', function () { self.metric = b.getAttribute('data-metric'); self.saveViewState(); self.render(); });
+      b.addEventListener('click', function () { self.metric = b.getAttribute('data-metric'); self.saveViewState(); self.renderBodyOnly(); });
     });
     body.querySelectorAll('rect[data-day]').forEach(function (r) {
       r.addEventListener('click', function () { self.openDay(r.getAttribute('data-day')); });
@@ -1832,7 +1964,7 @@ class PulseView extends ItemView {
           const nd = new Date(y, m + dir, 1);
           self.moonMonth = { y: nd.getFullYear(), m: nd.getMonth() };
         }
-        self.render();
+        self.renderBodyOnly();
       });
     });
     body.querySelectorAll('.kp-moon-cell[data-day]').forEach(function (c) {
@@ -1898,7 +2030,7 @@ class PulseView extends ItemView {
 
     const self = this;
     body.querySelectorAll('[data-year]').forEach(function (b) {
-      b.addEventListener('click', function () { self.yearPick = parseInt(b.getAttribute('data-year'), 10); self.render(); });
+      b.addEventListener('click', function () { self.yearPick = parseInt(b.getAttribute('data-year'), 10); self.renderBodyOnly(); });
     });
   }
 
@@ -1949,7 +2081,7 @@ class PulseView extends ItemView {
       b.addEventListener('click', function () {
         const dir = parseInt(b.getAttribute('data-week'), 10);
         self.reviewWeek = dir === 0 ? startOfWeek(new Date()) : addDays(start, 7 * dir);
-        self.render();
+        self.renderBodyOnly();
       });
     });
     body.querySelector('[data-act="copy-week"]').addEventListener('click', async function () {
@@ -2014,7 +2146,7 @@ class PulseView extends ItemView {
       if (!text) return;
       await self.plugin.addMemo(text);
       input.value = '';
-      self.render();
+      self.renderBodyOnly();
     };
     body.querySelector('[data-act="memo-save"]').addEventListener('click', save);
     input.addEventListener('keydown', function (e) {
@@ -2033,9 +2165,14 @@ class PulseView extends ItemView {
       search.addEventListener('input', function () {
         self.memoQuery = search.value;
         const pos = search.selectionStart;
-        self.render();
-        const again = self.contentEl.querySelector('.kp-memo-search');
-        if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch (e) { } }
+        /* 连续敲字时用 rAF 合并重绘：一帧最多重建一次列表，输入不再逐键卡顿。 */
+        if (self._memoRaf) return;
+        self._memoRaf = requestAnimationFrame(function () {
+          self._memoRaf = 0;
+          self.renderBodyOnly();
+          const again = self.contentEl && self.contentEl.querySelector('.kp-memo-search');
+          if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch (e) { } }
+        });
       });
     }
     /* 内联编辑：点 ✎ 就地换成 textarea，不弹任何系统对话框。 */
@@ -2044,7 +2181,7 @@ class PulseView extends ItemView {
         const idx = parseInt(b.getAttribute('data-memo-edit'), 10);
         if (isNaN(idx) || !all[idx]) return;
         self.memoEdit = idx;
-        self.render();
+        self.renderBodyOnly();
         const box = self.contentEl.querySelector('[data-memo-editbox="' + idx + '"]');
         if (box) {
           box.focus();
@@ -2060,16 +2197,16 @@ class PulseView extends ItemView {
         const box = body.querySelector('[data-memo-editbox="' + idx + '"]');
         const text = box ? String(box.value || '').trim() : '';
         self.memoEdit = null;
-        if (!text || text === memo.text) { self.render(); return; }
+        if (!text || text === memo.text) { self.renderBodyOnly(); return; }
         memo.text = text;
         await self.plugin.persist();
-        self.render();
+        self.renderBodyOnly();
       });
     });
     body.querySelectorAll('[data-memo-cancel]').forEach(function (b) {
       b.addEventListener('click', function () {
         self.memoEdit = null;
-        self.render();
+        self.renderBodyOnly();
       });
     });
     const editBox = body.querySelector('.kp-memo-edit');
@@ -2078,7 +2215,7 @@ class PulseView extends ItemView {
         if (e.key === 'Escape') {
           e.preventDefault();
           self.memoEdit = null;
-          self.render();
+          self.renderBodyOnly();
         } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
           e.preventDefault();
           const btn = body.querySelector('[data-memo-commit]');
@@ -2091,7 +2228,7 @@ class PulseView extends ItemView {
         const idx = parseInt(b.getAttribute('data-memo-del'), 10);
         self.plugin.data.memos.splice(idx, 1);
         await self.plugin.persist();
-        self.render();
+        self.renderBodyOnly();
       });
     });
   }
@@ -2250,7 +2387,7 @@ class PulseView extends ItemView {
       b.addEventListener('click', function () {
         const t = b.getAttribute('data-tag');
         self.mapTag = (self.mapTag === t) ? '' : t;
-        self.render();
+        self.renderBodyOnly();
       });
     });
     const saveBtn = body.querySelector('[data-act="map-save"]');
@@ -2288,12 +2425,17 @@ class PulseView extends ItemView {
       search.addEventListener('input', function () {
         self.mapQuery = search.value;
         const pos = search.selectionStart;
-        self.render();
-        const again = self.contentEl.querySelector('[data-map-search]');
-        if (again && typeof again.focus === 'function') {
-          again.focus();
-          if (typeof again.setSelectionRange === 'function') again.setSelectionRange(pos, pos);
-        }
+        /* 与速记搜索一致：rAF 合并，输入时只重建正文一次。 */
+        if (self._mapRaf) return;
+        self._mapRaf = requestAnimationFrame(function () {
+          self._mapRaf = 0;
+          self.renderBodyOnly();
+          const again = self.contentEl && self.contentEl.querySelector('[data-map-search]');
+          if (again && typeof again.focus === 'function') {
+            again.focus();
+            if (typeof again.setSelectionRange === 'function') again.setSelectionRange(pos, pos);
+          }
+        });
       });
     }
   }
@@ -2351,7 +2493,7 @@ class PulseView extends ItemView {
     body.querySelector('[data-act="share-text"]').addEventListener('click', function () { self.plugin.copyShareText(self.range); });
     body.querySelector('[data-act="rebuild"]').addEventListener('click', async function () {
       await self.plugin.rescan(true);
-      self.render();
+      self.renderBodyOnly();
     });
   }
 

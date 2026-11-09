@@ -341,6 +341,37 @@ ok('brandMarkSvg 画布 512', mark.indexOf('viewBox="0 0 512 512"') >= 0);
 ok('brandMarkSvg 有渐变环', mark.indexOf('kpMarkRing') >= 0 && mark.indexOf('kpMarkPulse') >= 0);
 ok('brandMarkSvg 尺寸可调', P.brandMarkSvg(64).indexOf('width="64"') >= 0);
 ok('brandMarkSvg 无 NaN', mark.indexOf('NaN') < 0);
+ok('brandMarkSvg 两条路径带描边类名', mark.indexOf('kp-mark-ring') >= 0 && mark.indexOf('kp-mark-pulse') >= 0);
+ok('brandMarkSvg 路径已归一化', (mark.match(/pathLength="1"/g) || []).length === 2);
+
+// ---------- v1.0.1 入场动画 ----------
+const intro = P.introDelay;
+ok('introDelay 是函数', typeof intro === 'function');
+ok('introDelay 首项等于 base', intro(0, 26, 120, 520) === 120, String(intro(0, 26, 120, 520)));
+ok('introDelay 逐项递增', intro(3, 26, 120, 520) === 198, String(intro(3, 26, 120, 520)));
+ok('introDelay 受 cap 封顶', intro(100, 40, 260, 900) === 900, String(intro(100, 40, 260, 900)));
+ok('introDelay 默认 cap 600', intro(1000, 10, 0) === 600, String(intro(1000, 10, 0)));
+ok('introDelay 负数归零', intro(-5, 26, 0, 520) === 0, String(intro(-5, 26, 0, 520)));
+ok('introDelay 非法下标退化为 base', intro(NaN, 26, 120, 520) === 120, String(intro(NaN, 26, 120, 520)));
+ok('introDelay 返回整数', Number.isInteger(intro(2.7, 26.9, 120.4, 520)));
+
+const sigBase = {
+  daily: { '2026-11-01': { score: 20, words: 400, notes: 1, links: 2, revisions: 1, focusSec: 300 } },
+  noteCache: { a: {}, b: {} },
+  memos: [{ text: 'x' }],
+  tab: 'board', range: '30', metric: 'score', scene: 'pixel', settingsVersion: 2
+};
+const sig1 = P.viewSignature(sigBase);
+ok('viewSignature 是字符串', typeof sig1 === 'string' && sig1.length > 10);
+ok('viewSignature 稳定', P.viewSignature(sigBase) === sig1);
+ok('viewSignature 含页签', sig1.indexOf('board') >= 0);
+ok('viewSignature 换页签会变', P.viewSignature(Object.assign({}, sigBase, { tab: 'memo' })) !== sig1);
+ok('viewSignature 换画风会变', P.viewSignature(Object.assign({}, sigBase, { scene: 'ink' })) !== sig1);
+ok('viewSignature 分数变化会变', P.viewSignature(Object.assign({}, sigBase, {
+  daily: { '2026-11-01': { score: 21, words: 400, notes: 1, links: 2, revisions: 1, focusSec: 300 } }
+})) !== sig1);
+ok('viewSignature 空数据不炸', typeof P.viewSignature({}) === 'string');
+ok('viewSignature 无 NaN', P.viewSignature({}).indexOf('NaN') < 0);
 
 const shareSample = {
   score: 60, active: 3, days: 30, words: 1000, notes: 2, links: 4,
