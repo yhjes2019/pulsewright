@@ -21,6 +21,7 @@
 ### 技术细节
 
 - 新增 `package-lock.json`（`lockfileVersion: 3`，零依赖，只有根包一条）。没有锁文件时目录的构建验证跑不起来，也没法复现字节级一致的产物。
+- 新增 `scripts/build.js` 与 `npm run build`：把 `main.js`、`manifest.json`、`styles.css` 复制到 `dist/`，并校验 `manifest.json` 与 `package.json` 的版本号一致。这个插件零依赖、不需要打包，但目录的构建验证要求仓库里有一个能跑的构建脚本，否则报「could not run because package.json has no build script」。
 - `styles.css` 从 25566 字符降到 24960，删掉的是死代码与整个 `!important` 覆盖块。
 - 单元测试仍是 **228** 项全绿，功能行为未变。
 

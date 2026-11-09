@@ -134,7 +134,7 @@ cp -r pulsewright <你的库>/.obsidian/plugins/pulsewright
 Copy-Item -Recurse .\pulsewright "$env:USERPROFILE\Documents\你的库\.obsidian\plugins\pulsewright"
 ```
 
-不需要 `npm install`，没有构建步骤，也没有任何第三方运行时依赖。
+不需要 `npm install`，也没有任何第三方运行时依赖——`main.js` 就是能直接跑的源码。仓库里有个 `npm run build`，只是把三个文件拷进 `dist/` 并核对版本号，不做打包。
 
 装了 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 的话，添加 `yhjes2019/pulsewright` 就行，以后更新走 BRAT 的检查更新。
 
@@ -286,6 +286,7 @@ CSV 带 BOM，Excel 双击就开。JSON 是完整结构，想转 Notion 自己�
 ```bash
 npm test      # 228 项单测，跑的是纯函数和生命周期，用 fake obsidian 模块
 npm run check # node --check 语法检查
+npm run build # 三个文件拷进 dist/，并校验 manifest 与 package 版本一致
 ```
 
 改完把 `main.js` / `manifest.json` / `styles.css` 拷进 `.obsidian/plugins/pulsewright/`，Obsidian 里「设置 → 第三方插件 → 重载」就生效。
@@ -410,9 +411,10 @@ Measured time needs the plugin running, so edits made while Obsidian is closed c
 ```bash
 npm test       # 228 unit tests against a fake obsidian module
 npm run check  # node --check main.js
+npm run build  # copy the three release files into dist/ and verify the version
 ```
 
-The plugin is dependency-free: `main.js` is plain JavaScript with no build step, no bundler and no runtime packages. Tests run against a hand-written fake `obsidian` module injected through `Module._load`, so no Obsidian install is needed.
+The plugin is dependency-free: `main.js` is plain JavaScript with no bundler and no runtime packages. `npm run build` only copies `main.js`, `manifest.json` and `styles.css` into `dist/` and checks that the version in `manifest.json` matches `package.json`; it does not transform the code. Tests run against a hand-written fake `obsidian` module injected through `Module._load`, so no Obsidian install is needed.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [CHANGELOG.md](CHANGELOG.md) and [SECURITY.md](SECURITY.md).
 
