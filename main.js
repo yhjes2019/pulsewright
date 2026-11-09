@@ -1760,6 +1760,14 @@ const TAB_DEFS = [
   { id: 'data', name: '数据' }
 ];
 
+/* 十一个视图分成四栏：先按「你想干什么」分，再按时间尺度分。 */
+const MENU_GROUPS = [
+  { name: '现在', hint: '最近怎么样', ids: ['today', 'lanes'] },
+  { name: '时间', hint: '换个尺度看', ids: ['board', 'strata', 'moon', 'year'] },
+  { name: '内容', hint: '库里有什么', ids: ['review', 'map', 'insight'] },
+  { name: '做事', hint: '记点什么', ids: ['memo', 'data'] }
+];
+
 /* 每页开头一句话：这一页是干什么的。看不懂的一律改到看得懂为止。 */
 const PAGE_HINTS = {
   today: '今天写了多少、最近有没有断、还有一件你现在就能做的事。',
@@ -1922,8 +1930,14 @@ class PulseView extends ItemView {
     }
 
     const nowName = (TAB_DEFS.filter(function (t) { return t.id === this.tab; }, this)[0] || TAB_DEFS[0]).name;
-    const menuItems = TAB_DEFS.map(function (t) {
-      return '<button class="kp-menu-item' + (t.id === this.tab ? ' is-active' : '') + '" data-tab="' + t.id + '">' + t.name + '</button>';
+    const nameOf = {};
+    TAB_DEFS.forEach(function (t) { nameOf[t.id] = t.name; });
+    const curTab = this.tab;
+    const menuGroups = MENU_GROUPS.map(function (g) {
+      const items = g.ids.filter(function (id) { return nameOf[id]; }).map(function (id) {
+        return '<button class="kp-menu-item' + (id === curTab ? ' is-active' : '') + '" data-tab="' + id + '">' + nameOf[id] + '</button>';
+      }).join('');
+      return '<div class="kp-menu-group"><b>' + g.name + '<i>' + g.hint + '</i></b>' + items + '</div>';
     }, this).join('');
 
     shell.innerHTML = ''
@@ -1940,7 +1954,7 @@ class PulseView extends ItemView {
       + '  <button class="kp-switch-now" data-act="all">' + nowName + '<span class="kp-caret">▾</span></button>'
       + '  <p class="kp-now-hint"></p>'
       + '</div>'
-      + '<div class="kp-menu" hidden>' + menuItems + '</div>'
+      + '<div class="kp-menu-wrap"><div class="kp-menu">' + menuGroups + '</div></div>'
       + '<main class="kp-body"></main>';
 
     this.bindShell(shell);
@@ -1983,22 +1997,33 @@ class PulseView extends ItemView {
 
   bindShell(shell) {
     const self = this;
-    const menu = shell.querySelector('.kp-menu');
+    const wrap = shell.querySelector('.kp-menu-wrap');
     const allBtn = shell.querySelector('[data-act="all"]');
-    if (allBtn && menu) {
+    if (allBtn && wrap) {
       allBtn.addEventListener('click', function (e) {
         e.stopPropagation();
-        menu.hidden = !menu.hidden;
-        allBtn.classList.toggle('is-open', !menu.hidden);
+        const open = !wrap.classList.contains('is-open');
+        wrap.classList.toggle('is-open', open);
+        allBtn.classList.toggle('is-open', open);
       });
-      document.addEventListener('click', function () {
-        if (!menu.hidden) { menu.hidden = true; allBtn.classList.remove('is-open'); }
-      }, { once: false });
+      /* 点空白处收起：只绑一次，避免每次重绘都堆监听器。 */
+      if (!this._outsideBound) {
+        this._outsideBound = true;
+        document.addEventListener('click', function (ev) {
+          const w = self.contentEl.querySelector('.kp-menu-wrap');
+          const b2 = self.contentEl.querySelector('[data-act="all"]');
+          if (!w || !w.classList.contains('is-open')) return;
+          if (w.contains(ev.target) || (b2 && b2.contains(ev.target))) return;
+          w.classList.remove('is-open');
+          if (b2) b2.classList.remove('is-open');
+        });
+      }
     }
     shell.querySelectorAll('[data-tab]').forEach(function (b) {
       b.addEventListener('click', function () {
         self.tab = b.getAttribute('data-tab');
-        if (menu) menu.hidden = true;
+        if (wrap) wrap.classList.remove('is-open');
+        if (allBtn) allBtn.classList.remove('is-open');
         self.saveViewState();
         self.render();
       });
@@ -2018,6 +2043,7 @@ class PulseView extends ItemView {
     const hintEl = this.contentEl.querySelector('.kp-now-hint');
     if (hintEl) hintEl.textContent = PAGE_HINTS[this.tab] || '';
     body.empty();
+    body.classList.remove('kp-page-in');
     switch (this.tab) {
       case 'today': this.renderToday(body); break;
       case 'lanes': this.renderLanes(body); break;
@@ -2031,6 +2057,8 @@ class PulseView extends ItemView {
       case 'data': this.renderData(body); break;
       default: this.renderBoard(body);
     }
+    void body.offsetWidth;
+    body.classList.add('kp-page-in');
   }
 
 
