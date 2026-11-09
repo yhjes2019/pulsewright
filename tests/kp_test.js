@@ -490,6 +490,9 @@ ok('fmtDur 小时', P.fmtDur(7200) === '2.0 小时');
   ok('laneMatch folder 不越界', P.laneMatch(laneIdx['b/项目/抚州.md'], { match: 'folder:a' }) === false);
   ok('laneMatch path', P.laneMatch(laneIdx['b/项目/抚州.md'], { match: 'path:抚州' }) === true);
   ok('laneMatch 空规则', P.laneMatch(laneIdx['c/随手.md'], { match: '' }) === false);
+  ok('lanePretty 去序号前缀', P.lanePretty('04_来源') === '来源', P.lanePretty('04_来源'));
+  ok('lanePretty 保底', P.lanePretty('') === '', JSON.stringify(P.lanePretty('')));
+  ok('lanePretty 下划转变空格', P.lanePretty('my_notes') === 'my notes', P.lanePretty('my_notes'));
   // noteCache 里没有 path 字段（路径就是 key），所以必须能用第三个参数传路径
   const noPath = { title: '无路径字段', words: 10, mtime: laneDk, tags: [] };
   ok('laneMatch folder 靠第三参', P.laneMatch(noPath, { match: 'folder:a' }, 'a/练琴/x.md') === true);

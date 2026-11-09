@@ -1515,6 +1515,14 @@ function laneAdviceText(it) {
 }
 
 /* 没配过线时给一组起点：先给目录，一个人把生活分成哪几块，通常就写在目录名里。 */
+/* 目录名常常带序号前缀和文件名式的分隔，直接拿来当「你在意的事」念不通。 */
+function lanePretty(name) {
+  let t = String(name || '').trim();
+  t = t.replace(/^[0-9]{1,2}\s*[._\-、]\s*/, '');
+  t = t.replace(/[_-]+/g, ' ');
+  return t.trim() || String(name || '');
+}
+
 function suggestLanes(noteIndex, limit) {
   const n = limit || 6;
   const idx = noteIndex || {};
@@ -1535,12 +1543,12 @@ function suggestLanes(noteIndex, limit) {
   const out = [];
   Object.keys(folderCount).sort(function (a, b) { return folderCount[b] - folderCount[a]; }).forEach(function (f) {
     if (out.length >= n || folderCount[f] < 3) return;
-    out.push({ name: f.split('/').pop(), match: 'folder:' + f, perWeek: 0, note: folderCount[f] + ' 篇' });
+    out.push({ name: lanePretty(f.split('/').pop()), match: 'folder:' + f, perWeek: 0, note: folderCount[f] + ' 篇' });
   });
   if (out.length < n) {
     Object.keys(tagCount).sort(function (a, b) { return tagCount[b] - tagCount[a]; }).forEach(function (t) {
       if (out.length >= n || tagCount[t] < 2) return;
-      out.push({ name: t, match: 'tag:' + t, perWeek: 0, note: tagCount[t] + ' 篇' });
+      out.push({ name: lanePretty(t), match: 'tag:' + t, perWeek: 0, note: tagCount[t] + ' 篇' });
     });
   }
   return out.slice(0, n);
@@ -1728,6 +1736,7 @@ const PURE = {
   laneAdvice: laneAdvice,
   laneAdviceText: laneAdviceText,
   suggestLanes: suggestLanes,
+  lanePretty: lanePretty,
   parseLanes: parseLanes,
   formatLanes: formatLanes,
   echoPicks: echoPicks,
