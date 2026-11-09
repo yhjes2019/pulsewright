@@ -473,6 +473,78 @@ ok('fmtDur 小时', P.fmtDur(7200) === '2.0 小时');
   ok('csvText 表头', plugin.csvText().includes('date,score,words'));
   ok('csvText 行数', plugin.csvText().split('\n').filter(Boolean).length === 2);
 
+  // ---------- v1.0.3：惦记 ----------
+  const laneIdx = {
+    'a/练琴/2026-11-08.md': { title: '2026-11-08', words: 120, mtime: new Date(2026, 10, 8, 21, 0).getTime(), tags: ['练琴'], path: 'a/练琴/2026-11-08.md' },
+    'a/练琴/2026-11-05.md': { title: '2026-11-05', words: 90, mtime: new Date(2026, 10, 5, 20, 0).getTime(), tags: ['练琴', '巴赫'], path: 'a/练琴/2026-11-05.md' },
+    'b/项目/抚州.md': { title: '抚州宣讲', words: 400, mtime: new Date(2026, 9, 20, 10, 0).getTime(), tags: ['项目/抚州'], path: 'b/项目/抚州.md' },
+    'c/随手.md': { title: '随手', words: 30, mtime: new Date(2026, 10, 1, 9, 0).getTime(), tags: [], path: 'c/随手.md' },
+    'd/旧.md': { title: '旧的', words: 200, mtime: new Date(2026, 9, 9, 12, 0).getTime(), tags: [], path: 'd/旧.md' }
+  };
+  const laneDk = new Date(2026, 10, 9, 12, 0).getTime();
+
+  ok('laneMatch tag 命中', P.laneMatch(laneIdx['a/练琴/2026-11-08.md'], { match: 'tag:练琴' }) === true);
+  ok('laneMatch tag 不误伤', P.laneMatch(laneIdx['c/随手.md'], { match: 'tag:练琴' }) === false);
+  ok('laneMatch 嵌套 tag', P.laneMatch(laneIdx['b/项目/抚州.md'], { match: 'tag:项目' }) === true);
+  ok('laneMatch folder', P.laneMatch(laneIdx['a/练琴/2026-11-08.md'], { match: 'folder:a' }) === true);
+  ok('laneMatch folder 不越界', P.laneMatch(laneIdx['b/项目/抚州.md'], { match: 'folder:a' }) === false);
+  ok('laneMatch path', P.laneMatch(laneIdx['b/项目/抚州.md'], { match: 'path:抚州' }) === true);
+  ok('laneMatch 空规则', P.laneMatch(laneIdx['c/随手.md'], { match: '' }) === false);
+  // noteCache 里没有 path 字段（路径就是 key），所以必须能用第三个参数传路径
+  const noPath = { title: '无路径字段', words: 10, mtime: laneDk, tags: [] };
+  ok('laneMatch folder 靠第三参', P.laneMatch(noPath, { match: 'folder:a' }, 'a/练琴/x.md') === true);
+  ok('laneMatch path 靠第三参', P.laneMatch(noPath, { match: 'path:巴赫' }, 'x/巴赫平均律.md') === true);
+  const stP = P.laneStats({ 'a/练琴/2026-11-08.md': { title: 't', words: 9, mtime: new Date(2026, 10, 8).getTime(), tags: [] } }, { match: 'folder:a' }, laneDk);
+  ok('laneStats 无 path 字段也能命中', stP.total === 1, String(stP.total));
+
+  const stA = P.laneStats(laneIdx, { match: 'tag:练琴' }, laneDk);
+  ok('laneStats 命中两天', stA.total === 2, String(stA.total));
+  ok('laneStats 本周两次', stA.weekCount === 2, String(stA.weekCount));
+  ok('laneStats 最近一天', stA.lastKey === '2026-11-08', stA.lastKey);
+  ok('laneStats 安静 1 天', stA.quietDays === 1, String(stA.quietDays));
+  ok('laneStats 最近标题', stA.lastTitle === '2026-11-08', stA.lastTitle);
+
+  const stB = P.laneStats(laneIdx, { match: 'tag:项目' }, laneDk);
+  ok('laneStats 久未动安静 20 天', stB.quietDays === 20, String(stB.quietDays));
+
+  const stNone = P.laneStats(laneIdx, { match: 'tag:不存在' }, laneDk);
+  ok('laneStats 全是 -1', stNone.quietDays === -1, String(stNone.quietDays));
+
+  const ser = P.laneSeries(stA, 14, laneDk);
+  ok('laneSeries 长度', ser.length === 14, String(ser.length));
+  ok('laneSeries 右端是今天', ser[13].key === '2026-11-09', ser[13].key);
+  ok('laneSeries 命中落在点上', ser[12].hit === true && ser[11].hit === false);
+
+  ok('laneStatus 达标', P.laneStatus({ quietDays: 1, weekCount: 3 }, { perWeek: 3 }).cls === 'ok');
+  ok('laneStatus 落后', P.laneStatus({ quietDays: 9, weekCount: 0 }, { perWeek: 3 }).cls === 'warn');
+  ok('laneStatus 无节奏短', P.laneStatus({ quietDays: 3 }, { perWeek: 0 }).text === '3 天前');
+  ok('laneStatus 无节奏久', P.laneStatus({ quietDays: 20 }, { perWeek: 0 }).cls === 'warn');
+
+  const sug = P.suggestLanes(laneIdx, 2);
+  ok('suggestLanes 优先高频标签', sug[0].match === 'tag:练琴', sug[0].match);
+  ok('suggestLanes 有结果', sug.length >= 1, String(sug.length));
+  const foldIdx = {};
+  for (let i = 1; i <= 4; i++) foldIdx['p/x' + i + '.md'] = { title: 'x' + i, words: 40, mtime: laneDk, tags: ['t'], path: 'p/x' + i + '.md' };
+  foldIdx['q/y.md'] = { title: 'y', words: 40, mtime: laneDk, tags: ['t'], path: 'q/y.md' };
+  const sug2 = P.suggestLanes(foldIdx, 2);
+  ok('suggestLanes 目录优先', sug2.length === 2 && sug2[0].match === 'folder:p', JSON.stringify(sug2.map(function(x){return x.match;})));
+
+  const parsed = P.parseLanes('# 注释\n练琴 | tag:练琴 | 3\n\n抚州 | path:抚州\n坏行\n');
+  ok('parseLanes 跳过注释空行坏行', parsed.length === 2, String(parsed.length));
+  ok('parseLanes 读过节奏', parsed[0].perWeek === 3, String(parsed[0].perWeek));
+  ok('parseLanes 缺省节奏为 0', parsed[1].perWeek === 0, String(parsed[1].perWeek));
+  ok('formatLanes 可回读', P.formatLanes(parsed) === '练琴 | tag:练琴 | 3\n抚州 | path:抚州 | 0');
+
+  const echoes = P.echoPicks(laneIdx, laneDk, 3);
+  ok('echoPicks 至少一条', echoes.length >= 1, String(echoes.length));
+  ok('echoPicks 命中上个月', echoes[0].label === '上个月这个时候', echoes[0] && echoes[0].label);
+  ok('echoPicks 取到那天', echoes[0].key === '2026-10-09', echoes[0] && echoes[0].key);
+
+  ok('echoLead 取第一句', P.echoLead('今天练了三个小时。然后去吃饭。') === '今天练了三个小时。');
+  ok('echoLead 去 frontmatter', P.echoLead('---\ntitle: x\n---\n正文第一句。') === '正文第一句。');
+  ok('echoLead 空文本', P.echoLead('') === '');
+  ok('echoLead 超长截断', P.echoLead('很长的句子'.repeat(20), 10).endsWith('…'));
+
   // ---------- 命令：速记一条 必须真的切到 memo 页 ----------
   const cmds = {};
   plugin.addCommand = (c) => { cmds[c.id] = c; };

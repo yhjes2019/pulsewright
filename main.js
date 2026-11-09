@@ -37,6 +37,8 @@ const DEFAULT_SETTINGS = {
   /* 导出与备份的隐私开关。 */
   /* 超过这么多天没修改的笔记算「久未更新」。 */
   staleDays: 90,
+  /* 「惦记」里逐行配置的几条线：名称 | 匹配 | 每周几次。 */
+  lanesText: '',
   exportIncludeSettings: false,
   includeMemosInBackup: false,
   settingsVersion: SETTINGS_VERSION
@@ -45,12 +47,12 @@ const DEFAULT_SETTINGS = {
 const WEIGHTS = { wordsPerPoint: 200, note: 4, link: 1.5, revision: 1 };
 
 const METRICS = [
-  { id: 'score', name: '贡献分' },
   { id: 'words', name: '新增词数' },
   { id: 'notes', name: '新建笔记' },
   { id: 'links', name: '内链数' },
   { id: 'revisions', name: '修订次数' },
-  { id: 'focusSec', name: '深度专注' }
+  { id: 'focusSec', name: '深度专注' },
+  { id: 'score', name: '贡献分' }
 ];
 
 const RANGES = [
@@ -1377,6 +1379,284 @@ function shareText(o) {
   return lines.join('\n');
 }
 
+/* ---------------- 惦记：你在意的事，有没有停 ---------------- */
+
+/* 一条「线」的匹配规则：tag:练琴 / folder:02_学科 / path:巴赫 */
+function laneMatch(note, lane, path) {
+  if (!note || !lane) return false;
+  const raw = String(lane.match || '').trim();
+  if (!raw) return false;
+  const i = raw.indexOf(':');
+  const kind = i > 0 ? raw.slice(0, i).toLowerCase() : 'tag';
+  const val = (i > 0 ? raw.slice(i + 1) : raw).trim();
+  if (!val) return false;
+  const low = val.toLowerCase();
+  if (kind === 'tag') {
+    const tags = note.tags || [];
+    for (let k = 0; k < tags.length; k++) {
+      const t = String(tags[k]).toLowerCase();
+      if (t === low || t.indexOf(low + '/') === 0) return true;
+    }
+    return false;
+  }
+  const pth = String(path || note.path || '').replace(/\\/g, '/');
+  if (kind === 'folder') {
+    const p = pth.toLowerCase();
+    const f = low.replace(/\/+$/, '');
+    return p.indexOf(f + '/') === 0;
+  }
+  if (kind === 'path') {
+    const p = (pth + ' ' + String(note.title || '')).toLowerCase();
+    return p.indexOf(low) >= 0;
+  }
+  return false;
+}
+
+/* 统计一条线：命中过的日子、最近一次、本周几次、安静了几天。 */
+function laneStats(noteIndex, lane, nowMs) {
+  const now = typeof nowMs === 'number' && isFinite(nowMs) ? nowMs : Date.now();
+  const idx = noteIndex || {};
+  const hits = {};
+  let lastMs = 0, lastPath = '';
+  const keys = Object.keys(idx);
+  for (let i = 0; i < keys.length; i++) {
+    const p = keys[i];
+    const n = idx[p];
+    if (!n || !laneMatch(n, lane, p)) continue;
+    const t = n.mtime || 0;
+    if (!t) continue;
+    const k = dayKeyOf(t);
+    hits[k] = (hits[k] || 0) + 1;
+    if (t > lastMs) { lastMs = t; lastPath = p; }
+  }
+  const today = startOfDay(new Date(now));
+  const nowKey = dayKeyOf(today.getTime());
+  const wkStart = dayKeyOf(addDays(today, -6).getTime());
+  let weekCount = 0, total = 0;
+  for (const k in hits) {
+    total += 1;
+    if (k >= wkStart && k <= nowKey) weekCount += 1;
+  }
+  const quiet = lastMs
+    ? Math.round((today.getTime() - startOfDay(new Date(lastMs)).getTime()) / 86400000)
+    : -1;
+  return {
+    hits: hits,
+    lastMs: lastMs,
+    lastKey: lastMs ? dayKeyOf(lastMs) : '',
+    lastPath: lastPath,
+    lastTitle: lastPath && idx[lastPath] ? (idx[lastPath].title || '') : '',
+    weekCount: weekCount,
+    total: total,
+    quietDays: quiet
+  };
+}
+
+/* 把一条线的命中情况铺成最近 days 天的格子，左旧右新。 */
+function laneSeries(stats, days, nowMs) {
+  const n = days || 84;
+  const now = startOfDay(new Date(typeof nowMs === 'number' && isFinite(nowMs) ? nowMs : Date.now()));
+  const hits = (stats && stats.hits) || {};
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const k = dayKeyOf(addDays(now, -i).getTime());
+    out.push({ key: k, hit: !!hits[k] });
+  }
+  return out;
+}
+
+/* 一句状态：只说「动的频率」，不打分、不判好坏。 */
+function laneStatus(stats, lane) {
+  const per = lane && typeof lane.perWeek === 'number' ? lane.perWeek : 0;
+  const quiet = stats ? stats.quietDays : -1;
+  if (quiet < 0) return { text: '还没有记录', cls: '' };
+  if (per > 0) {
+    const wk = stats.weekCount || 0;
+    if (wk >= per) return { text: '本周 ' + wk + ' 次 · 正好', cls: 'ok' };
+    const gap = Math.max(0.5, 7 / per);
+    if (quiet >= gap * 2) return { text: '本周 ' + wk + ' / ' + per + ' 次 · 安静了 ' + quiet + ' 天', cls: 'warn' };
+    return { text: '本周 ' + wk + ' / ' + per + ' 次', cls: '' };
+  }
+  if (quiet === 0) return { text: '今天动过', cls: 'ok' };
+  return { text: quiet + ' 天前', cls: quiet >= 14 ? 'warn' : '' };
+}
+
+/* 挑一条最该被提一句的线：超过自己的节奏、且安静最久。 */
+function laneAdvice(items) {
+  const list = items || [];
+  let best = null, bestScore = -1;
+  for (let i = 0; i < list.length; i++) {
+    const it = list[i];
+    const st = it && it.stats;
+    if (!st || st.quietDays < 0) continue;
+    const per = it.lane && it.lane.perWeek ? it.lane.perWeek : 0;
+    let score;
+    if (per > 0) {
+      const gap = 7 / per;
+      if (st.quietDays < gap * 2) continue;
+      score = st.quietDays / gap;
+    } else {
+      if (st.quietDays < 14) continue;
+      score = st.quietDays / 14;
+    }
+    if (score > bestScore) { bestScore = score; best = it; }
+  }
+  return best;
+}
+
+function laneAdviceText(it) {
+  if (!it || !it.stats) return '';
+  const st = it.stats;
+  const name = (it.lane && it.lane.name) || '';
+  let s = name + ' 这条线安静了 ' + st.quietDays + ' 天。';
+  if (st.lastTitle) s += '上一次是 ' + st.lastKey + '，你在改《' + st.lastTitle + '》。';
+  else s += '还没有动过的记录。';
+  return s;
+}
+
+/* 没配过线时给一组起点：先给目录，一个人把生活分成哪几块，通常就写在目录名里。 */
+function suggestLanes(noteIndex, limit) {
+  const n = limit || 6;
+  const idx = noteIndex || {};
+  const tagCount = {};
+  const folderCount = {};
+  const keys = Object.keys(idx);
+  for (let i = 0; i < keys.length; i++) {
+    const note = idx[keys[i]];
+    if (!note) continue;
+    const tags = note.tags || [];
+    for (let k = 0; k < tags.length; k++) tagCount[tags[k]] = (tagCount[tags[k]] || 0) + 1;
+    const seg = String(note.path || keys[i] || '').replace(/\\/g, '/').split('/');
+    if (seg.length > 1) {
+      const f = seg.slice(0, -1).join('/');
+      if (f && f !== '.') folderCount[f] = (folderCount[f] || 0) + 1;
+    }
+  }
+  const out = [];
+  Object.keys(folderCount).sort(function (a, b) { return folderCount[b] - folderCount[a]; }).forEach(function (f) {
+    if (out.length >= n || folderCount[f] < 3) return;
+    out.push({ name: f.split('/').pop(), match: 'folder:' + f, perWeek: 0, note: folderCount[f] + ' 篇' });
+  });
+  if (out.length < n) {
+    Object.keys(tagCount).sort(function (a, b) { return tagCount[b] - tagCount[a]; }).forEach(function (t) {
+      if (out.length >= n || tagCount[t] < 2) return;
+      out.push({ name: t, match: 'tag:' + t, perWeek: 0, note: tagCount[t] + ' 篇' });
+    });
+  }
+  return out.slice(0, n);
+}
+
+/* 设置页里一行一条：名称 | 匹配 | 每周几次（0 = 不设节奏）。 */
+function parseLanes(text) {
+  const out = [];
+  const lines = String(text || '').split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i].trim();
+    if (!raw || raw.charAt(0) === '#') continue;
+    const parts = raw.split('|');
+    if (parts.length < 2) continue;
+    const name = parts[0].trim();
+    const match = parts[1].trim();
+    if (!name || !match) continue;
+    const per = parts.length > 2 ? parseInt(parts[2].trim(), 10) : 0;
+    out.push({
+      id: 'lane-' + i,
+      name: name,
+      match: match,
+      perWeek: isNaN(per) || per < 0 ? 0 : per
+    });
+  }
+  return out;
+}
+
+function formatLanes(lanes) {
+  return (lanes || []).map(function (l) {
+    return l.name + ' | ' + l.match + ' | ' + (l.perWeek || 0);
+  }).join('\n');
+}
+
+/* 回声：去年 / 上个月 / 三年前的这个时候，各挑一篇那段时间最后动过的。
+ * 「这个时候」而不是「今天」，是因为多数人不会正好在那一天留下笔记，
+ * 卡死同一天会让这个功能大部分时间是空的。 */
+function echoPicks(noteIndex, nowMs, limit) {
+  const now = startOfDay(new Date(typeof nowMs === 'number' && isFinite(nowMs) ? nowMs : Date.now()));
+  const idx = noteIndex || {};
+  const specs = [
+    { id: 'y1', label: '去年这个时候', years: 1 },
+    { id: 'm1', label: '上个月这个时候', months: 1 },
+    { id: 'y3', label: '三年前这个时候', years: 3 }
+  ];
+  const byDay = {};
+  const keys = Object.keys(idx);
+  for (let i = 0; i < keys.length; i++) {
+    const p = keys[i];
+    const n = idx[p];
+    if (!n || !n.mtime) continue;
+    const k = dayKeyOf(n.mtime);
+    if (!byDay[k]) byDay[k] = [];
+    byDay[k].push(p);
+  }
+  const dayKeys = Object.keys(byDay).sort();
+  const used = {};
+  const out = [];
+  for (let i = 0; i < specs.length; i++) {
+    if (limit && out.length >= limit) break;
+    const sp = specs[i];
+    const d = new Date(now.getTime());
+    if (sp.years) d.setFullYear(d.getFullYear() - sp.years);
+    if (sp.months) d.setMonth(d.getMonth() - sp.months);
+    const target = startOfDay(d);
+    let bestKey = '', bestDiff = 999;
+    for (let k = 0; k < dayKeys.length; k++) {
+      const diff = Math.abs(Math.round((startOfDay(parseKey(dayKeys[k])).getTime() - target.getTime()) / 86400000));
+      if (diff <= 5 && diff < bestDiff) { bestDiff = diff; bestKey = dayKeys[k]; }
+    }
+    if (!bestKey) continue;
+    const list = byDay[bestKey].slice().sort(function (a, b) {
+      return (idx[b].words || 0) - (idx[a].words || 0);
+    });
+    let path = '';
+    for (let k = 0; k < list.length; k++) {
+      if (!used[list[k]] && (idx[list[k]].words || 0) >= 20) { path = list[k]; break; }
+    }
+    if (!path) {
+      for (let k = 0; k < list.length; k++) {
+        if (!used[list[k]]) { path = list[k]; break; }
+      }
+    }
+    if (!path) continue;
+    used[path] = 1;
+    out.push({
+      id: sp.id,
+      label: sp.label,
+      key: bestKey,
+      path: path,
+      title: idx[path].title || '',
+      words: idx[path].words || 0
+    });
+  }
+  return out;
+}
+
+/* 从正文里取一句话当回声引文：优先第一句，太长就截断。 */
+function echoLead(text, max) {
+  const lim = max || 56;
+  let t = String(text || '');
+  if (t.indexOf('---') === 0) {
+    const end = t.indexOf('\n---', 3);
+    if (end > 0) t = t.slice(end + 4);
+  }
+  t = t.replace(/```[\s\S]*?```/g, ' ')
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!t) return '';
+  const m = t.match(/^(.{6,120}?[。！？!?])/);
+  let s = m ? m[1] : t;
+  if (s.length > lim) s = s.slice(0, lim).replace(/[，、,；;]$/, '') + '…';
+  return s;
+}
+
 /* ---------------- 导出（供测试） ---------------- */
 const PURE = {
   pad2: pad2,
@@ -1441,13 +1721,25 @@ const PURE = {
   viewSignature: viewSignature,
   shareCardSvg: shareCardSvg,
   shareText: shareText,
+  laneMatch: laneMatch,
+  laneStats: laneStats,
+  laneSeries: laneSeries,
+  laneStatus: laneStatus,
+  laneAdvice: laneAdvice,
+  laneAdviceText: laneAdviceText,
+  suggestLanes: suggestLanes,
+  parseLanes: parseLanes,
+  formatLanes: formatLanes,
+  echoPicks: echoPicks,
+  echoLead: echoLead,
   DEFAULT_SETTINGS: DEFAULT_SETTINGS,
   WEIGHTS: WEIGHTS
 };
 /* ---------------- 视图 ---------------- */
 
 const TAB_DEFS = [
-  { id: 'board', name: '看板' },
+  { id: 'lanes', name: '惦记' },
+  { id: 'board', name: '今天' },
   { id: 'strata', name: '知识地层' },
   { id: 'moon', name: '月相日历' },
   { id: 'year', name: '年度画像' },
@@ -1490,9 +1782,9 @@ class PulseView extends ItemView {
     super(leaf);
     this.plugin = plugin;
     const vs = (plugin && plugin.data && plugin.data.viewState) || {};
-    this.tab = vs.tab || 'board';
+    this.tab = vs.tab || 'lanes';
     this.range = vs.range || '90';
-    this.metric = vs.metric || 'score';
+    this.metric = vs.metric || 'words';
     this.moonMonth = null;
     this.reviewWeek = null;
     /* 首屏仪式感：只在每个视图实例第一次渲染时播一次，之后切页签不重播。 */
@@ -1682,6 +1974,7 @@ class PulseView extends ItemView {
     if (!body) return;
     body.empty();
     switch (this.tab) {
+      case 'lanes': this.renderLanes(body); break;
       case 'strata': this.renderStrata(body); break;
       case 'moon': this.renderMoon(body); break;
       case 'year': this.renderYear(body); break;
@@ -1704,6 +1997,7 @@ class PulseView extends ItemView {
     const todayKey = dayKeyToday();
     const todayEntry = daily[todayKey] || null;
     const cap = this.plugin.settings.scoreCap || DEFAULT_SETTINGS.scoreCap;
+    const picks = echoPicks((this.plugin.data && this.plugin.data.noteCache) || {}, Date.now(), 3);
 
     const rangeChips = RANGES.map(function (r) {
       return '<button class="kp-chip' + (r.id === this.range ? ' is-active' : '') + '" data-range="' + r.id + '">' + r.name + '</button>';
@@ -1721,26 +2015,16 @@ class PulseView extends ItemView {
     const todayScore = todayEntry ? (todayEntry.score || 0) : 0;
 
     body.innerHTML = ''
+      + this.todayFacts(daily, st)
       + '<section class="kp-section kp-chips">'
       + '  <div class="kp-chiprow">' + rangeChips + '</div>'
       + '</section>'
-
       + '<section class="kp-kpis">'
-      + this.kpi('累计贡献分', fmtInt(s.score), '区间内合计', 'big')
       + this.kpi('活跃天数', s.active + ' / ' + s.days, '有产出的天数占 ' + activePct + '%', '')
       + this.kpi('当前连续', st.current + ' 天', '最长 ' + st.longest + ' 天', '')
       + this.kpi('投入时间', fmtDur(s.focusSec), '专注 · 交互另计', '')
       + this.kpi('新增词数', fmtInt(s.words), '新建 ' + fmtInt(s.notes) + ' 篇', '')
-      + this.kpi('内链 / 修订', fmtInt(s.links) + ' / ' + fmtInt(s.revisions), '最高一天 ' + fmtInt(s.best || 0) + ' 分', '')
-      + '</section>'
-
-      + '<section class="kp-card kp-today">'
-      + '  <div class="kp-today-left"><span class="kp-eyebrow">今天</span>'
-      + '    <div class="kp-today-score">' + fmtInt(todayScore) + '<em> 分</em></div></div>'
-      + '  <div class="kp-today-right">'
-      + '    <div class="kp-bar-track"><div class="kp-bar-fill" style="width:' + pct(todayScore, cap) + '%"></div></div>'
-      + '    <div class="kp-hint">今日目标 ' + cap + ' 分 · ' + (todayScore >= cap ? '已达成' : '还差 ' + (cap - todayScore) + ' 分') + '</div>'
-      + '  </div>'
+      + this.kpi('内链 / 修订', fmtInt(s.links) + ' / ' + fmtInt(s.revisions), '最高一天 ' + fmtInt(s.best || 0), '')
       + '</section>'
 
       + '<section class="kp-card">'
@@ -1764,10 +2048,164 @@ class PulseView extends ItemView {
       + svgBars(this.weekdayItems(), { height: 150 })
       + '  </div>'
       + '</section>'
+      + this.echoCard(picks)
       + this.reviewCard()
       + this.topNotesCard();
 
     this.bindBoard(body);
+    this.fillEcho(body, picks);
+  }
+
+  /* ---------- 惦记 ---------- */
+
+  renderLanes(body) {
+    const idx = (this.plugin.data && this.plugin.data.noteCache) || {};
+    if (!Object.keys(idx).length) {
+      body.innerHTML = '<section class="kp-card"><h3>惦记</h3>'
+        + '<p class="kp-hint">还没有索引到笔记，点右上角「刷新」扫一遍。</p></section>';
+      return;
+    }
+    if (this._laneEdit) { this.renderLaneEditor(body); return; }
+
+    const cfg = parseLanes(this.plugin.settings.lanesText);
+    if (!cfg.length) {
+      this._laneEdit = true;
+      this.renderLaneEditor(body);
+      return;
+    }
+
+    const now = Date.now();
+    const items = cfg.map(function (lane) {
+      const stats = laneStats(idx, lane, now);
+      return { lane: lane, stats: stats, series: laneSeries(stats, 84, now) };
+    });
+
+    const rows = items.map(function (it) {
+      const st = laneStatus(it.stats, it.lane);
+      let cells = '';
+      for (let w = 0; w < it.series.length; w += 7) {
+        let wk = '';
+        for (let d = w; d < w + 7 && d < it.series.length; d++) {
+          wk += '<i class="kp-lane-cell' + (it.series[d].hit ? ' is-hit' : '') + '"></i>';
+        }
+        cells += '<span class="kp-lane-week">' + wk + '</span>';
+      }
+      return '<div class="kp-lane">'
+        + '<div class="kp-lane-name">' + escapeHtml(it.lane.name)
+        + (it.lane.perWeek ? '<em>每周 ' + it.lane.perWeek + ' 次</em>' : '')
+        + '</div>'
+        + '<div class="kp-lane-track">' + cells + '</div>'
+        + '<div class="kp-lane-st' + (st.cls ? ' is-' + st.cls : '') + '">' + escapeHtml(st.text) + '</div>'
+        + '</div>';
+    }).join('');
+
+    const top = laneAdvice(items);
+    const ask = top
+      ? '<section class="kp-card kp-lane-ask"><h3>它只想说一句</h3>'
+        + '<p>' + escapeHtml(laneAdviceText(top)) + '</p>'
+        + '<p class="kp-hint">要现在给它半小时，还是先记一笔「推迟」？记下来也行，下次就不是忘了。</p></section>'
+      : '';
+
+    body.innerHTML = ''
+      + '<section class="kp-card kp-lanes">'
+      + '  <div class="kp-sec-head"><h3>你最近有没有偏</h3><span class="kp-eyebrow">最近 12 周</span></div>'
+      + '  <p class="kp-hint">这几条是你自己说要在意的事。横着看是时间，缺一块就是那几天没碰。</p>'
+      + '  <div class="kp-lane-list">' + rows + '</div>'
+      + '  <div class="kp-lane-axis"><span>12 周前</span><span>6 周前</span><span>今天</span></div>'
+      + '  <div class="kp-row-actions"><button class="kp-btn kp-btn-sm" data-act="lanes-edit">改这几条</button></div>'
+      + '</section>'
+      + ask;
+
+    const self = this;
+    const btn = body.querySelector('[data-act="lanes-edit"]');
+    if (btn) btn.addEventListener('click', function () {
+      self._laneEdit = true;
+      self.renderBodyOnly();
+    });
+  }
+
+  /* 编辑这几条线：直接给一段可改的文本，不另做一套表单。 */
+  renderLaneEditor(body) {
+    const idx = (this.plugin.data && this.plugin.data.noteCache) || {};
+    let text = String(this.plugin.settings.lanesText || '').trim();
+    if (!text) {
+      const sug = suggestLanes(idx, 5);
+      text = sug.length
+        ? sug.map(function (s) { return s.name + ' | ' + s.match + ' | 0'; }).join('\n')
+        : '练琴 | tag:练琴 | 3\n项目 | folder:项目 | 0';
+    }
+    body.innerHTML = ''
+      + '<section class="kp-card kp-lane-editor">'
+      + '  <div class="kp-sec-head"><h3>你在意哪几件事</h3><span class="kp-eyebrow">只有你自己知道</span></div>'
+      + '  <p class="kp-hint">一行一条：<b>名称 | 匹配 | 每周几次</b>。匹配写 <code>tag:练琴</code>、'
+      + '<code>folder:项目</code> 或 <code>path:英语</code>；每周几次写 0 表示不设节奏，只看上次动过是几天前。'
+      + '下面几行是按你库里最常见的目录预填的，改成你真正在意的事就行。</p>'
+      + '  <textarea class="kp-lane-edit" spellcheck="false" rows="7">' + escapeHtml(text) + '</textarea>'
+      + '  <div class="kp-row-actions">'
+      + '    <button class="kp-btn kp-btn-primary" data-act="lane-save">开始</button>'
+      + '    <button class="kp-btn" data-act="lane-cancel">取消</button>'
+      + '  </div>'
+      + '</section>';
+
+    const self = this;
+    const ta = body.querySelector('.kp-lane-edit');
+    const save = body.querySelector('[data-act="lane-save"]');
+    if (save) save.addEventListener('click', function () {
+      self.plugin.settings.lanesText = ta ? ta.value : '';
+      self._laneEdit = false;
+      Promise.resolve(self.plugin.saveSettings()).then(function () { self.renderBodyOnly(); });
+    });
+    const cancel = body.querySelector('[data-act="lane-cancel"]');
+    if (cancel) cancel.addEventListener('click', function () {
+      self._laneEdit = false;
+      self.renderBodyOnly();
+    });
+  }
+
+  /* 首页三个事实：今天写了多少、动了哪几篇、连了几天。不出现分数。 */
+  todayFacts(daily, st) {
+    const e = daily[dayKeyToday()] || null;
+    return '<section class="kp-facts">'
+      + '<div class="kp-fact"><b>' + fmtInt(e ? e.words || 0 : 0) + '</b><span>今天写的字</span></div>'
+      + '<div class="kp-fact"><b>' + (e && e.touched ? e.touched.length : 0) + '</b><span>动过的笔记</span></div>'
+      + '<div class="kp-fact"><b>' + st.current + '</b><span>连续天数</span></div>'
+      + '</section>';
+  }
+
+  echoCard(picks) {
+    if (!picks || !picks.length) {
+      return '<section class="kp-card kp-echo"><h3>回声</h3>'
+        + '<p class="kp-hint">库里还没有够老的笔记。等它长大一点，这里会自己说话。</p></section>';
+    }
+    const cards = picks.map(function (p, i) {
+      return '<div class="kp-echo-card">'
+        + '<div class="kp-echo-when">' + escapeHtml(p.label) + '</div>'
+        + '<a class="kp-echo-title" data-note="' + escapeHtml(p.path) + '" href="#">' + escapeHtml(p.title) + '</a>'
+        + '<p class="kp-echo-lead" data-echo="' + i + '"></p>'
+        + '<div class="kp-echo-meta">' + escapeHtml(p.key) + ' · ' + fmtInt(p.words) + ' 词</div>'
+        + '</div>';
+    }).join('');
+    return '<section class="kp-card kp-echo">'
+      + '<div class="kp-sec-head"><h3>回声</h3><span class="kp-eyebrow">你以前写过这些话</span></div>'
+      + '<div class="kp-echo-grid">' + cards + '</div></section>';
+  }
+
+  /* 正文按需读三篇，不进缓存；读不到就留空，不报错。 */
+  fillEcho(body, picks) {
+    const vault = this.app && this.app.vault;
+    if (!vault || !picks || !picks.length) return;
+    picks.forEach(function (p, i) {
+      const slot = body.querySelector('[data-echo="' + i + '"]');
+      if (!slot) return;
+      try {
+        const f = vault.getAbstractFileByPath(p.path);
+        if (!f) return;
+        Promise.resolve(vault.cachedRead(f)).then(function (text) {
+          const lead = echoLead(text, 56);
+          if (lead) slot.textContent = lead;
+        }).catch(function () { /* 忽略 */ });
+      } catch (e) { /* 忽略 */ }
+    });
   }
 
   /* 今日回顾：从「写得不短、但一个月没碰」的笔记里挑一篇，同一天稳定。
@@ -2450,11 +2888,15 @@ class PulseView extends ItemView {
     const scanMs = typeof d.lastScanMs === 'number' ? d.lastScanMs : null;
     const scanRead = typeof d.lastScanRead === 'number' ? d.lastScanRead : null;
     const scanCost = scanMs === null ? '—' : (scanMs < 1000 ? scanMs + ' 毫秒' : (scanMs / 1000).toFixed(1) + ' 秒');
+    const dailyAll = d.daily || {};
+    let scoreAll = 0;
+    for (const k in dailyAll) scoreAll += dailyAll[k].score || 0;
     const scanSub = scanRead === null
       ? '还没跑过完整扫描'
       : ('本次读取 ' + fmtInt(scanRead) + ' 篇 · 其余命中缓存');
     body.innerHTML = ''
       + '<section class="kp-kpis">'
+      + this.kpi('累计贡献分', fmtInt(scoreAll), '全部历史 · 首页已不显示', 'big')
       + this.kpi('已索引笔记', fmtInt(noteCount), '排除目录已过滤', '')
       + this.kpi('有记录的天数', fmtInt(dayCount), '含估算历史', '')
       + this.kpi('上次扫描', d.lastScan ? new Date(d.lastScan).toLocaleString() : '—', '可手动刷新', '')
@@ -2760,6 +3202,19 @@ class PulseSettingTab extends PluginSettingTab {
           });
         });
     });
+
+    new Setting(containerEl)
+      .setName('惦记的几条线')
+      .setDesc('一行一条：名称 | 匹配 | 每周几次。匹配写 tag:练琴、folder:02_学科 或 path:巴赫；每周几次写 0 表示不设节奏，只看上次动过是几天前。')
+      .addTextArea(function (t) {
+        t.setPlaceholder('练琴 | tag:练琴 | 3');
+        t.setValue(this.plugin.settings.lanesText || '');
+        t.inputEl.rows = 6;
+        t.onChange(async function (v) {
+          this.plugin.settings.lanesText = v;
+          await this.plugin.saveSettings();
+        }.bind(this));
+      }.bind(this));
 
     new Setting(containerEl)
       .setName('排除目录')
@@ -3129,6 +3584,18 @@ class PulsewrightPlugin extends Plugin {
   }
 
   /* ---- 视图 ---- */
+
+  /* 当前配置的几条线。 */
+  lanes() {
+    return parseLanes(this.settings && this.settings.lanesText);
+  }
+
+  /* 跳到本插件设置页。 */
+  openSettings() {
+    try {
+      if (this.app && this.app.setting) this.app.setting.openTabById(this.manifest.id);
+    } catch (e) { /* 取不到就算了 */ }
+  }
 
   async activateView() {
     try {

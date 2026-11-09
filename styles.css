@@ -1179,3 +1179,212 @@
 /* 「减弱动态效果」下不需要覆盖块：上面所有动效声明都写在
  * @media (prefers-reduced-motion: no-preference) 里，系统开启减弱时
  * 它们根本不参与匹配，最终呈现的就是静态、完整可见的样子。 */
+
+/* ---------- 惦记：一条线一条时间带 ---------- */
+.kp-lane-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+}
+
+.kp-lane {
+  display: grid;
+  grid-template-columns: minmax(86px, 130px) 1fr minmax(92px, 155px);
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.kp-lane:last-child {
+  border-bottom: none;
+}
+
+.kp-lane-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kp-lane-name em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.kp-lane-track {
+  display: flex;
+  gap: 5px;
+  height: 14px;
+  align-items: stretch;
+}
+
+.kp-lane-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  flex: 1;
+}
+
+.kp-lane-cell {
+  display: block;
+  height: 14px;
+  border-radius: 1px;
+  background: var(--background-modifier-border);
+  opacity: 0.4;
+}
+
+.kp-lane-cell.is-hit {
+  background: var(--interactive-accent);
+  opacity: 0.92;
+}
+
+.kp-lane-st {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.kp-lane-st.is-ok {
+  color: var(--color-green);
+}
+
+.kp-lane-st.is-warn {
+  color: var(--color-orange);
+}
+
+.kp-lane-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 9px;
+  color: var(--text-faint);
+}
+
+.kp-lane-ask p {
+  margin: 6px 0;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.kp-lane-sug-list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+}
+
+.kp-lane-sug {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.kp-lane-sug:last-child {
+  border-bottom: none;
+}
+
+.kp-lane-sug-name {
+  flex: 1;
+  font-size: 13px;
+}
+
+.kp-lane-sug-note {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.kp-btn-sm {
+  padding: 2px 10px;
+  font-size: 11px;
+}
+
+/* ---------- 今天：三个事实 ---------- */
+.kp-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  margin: 2px 0 18px;
+}
+
+.kp-fact b {
+  display: block;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+.kp-fact span {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* ---------- 回声 ---------- */
+.kp-echo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.kp-echo-card {
+  padding: 12px 14px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+}
+
+.kp-echo-when {
+  margin-bottom: 6px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-accent);
+}
+
+.kp-echo-title {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.kp-echo-lead {
+  min-height: 1.7em;
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text-muted);
+}
+
+.kp-echo-meta {
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.kp-lane-edit {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 12px 0 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-family: var(--font-monospace);
+  font-size: 12px;
+  line-height: 1.9;
+  resize: vertical;
+}
+
+.kp-lane-edit:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}

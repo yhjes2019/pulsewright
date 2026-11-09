@@ -1,9 +1,9 @@
 {
   "id": "pulsewright",
   "name": "Pulsewright",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "minAppVersion": "1.6.0",
-  "description": "本地知识脉冲：贡献分、年度热力图、知识地层、月相日历、年度画像、知识复盘、笔记地图、笔记洞察、分享卡。全部本地计算，无授权校验.",
+  "description": "本地知识脉冲：惦记你在意的事有没有断，加知识地层、月相日历、年度画像、知识复盘、笔记地图、分享卡。全部本地计算，无授权校验.",
   "author": "Luo",
   "authorUrl": "https://github.com/yhjes2019",
   "isDesktopOnly": false
