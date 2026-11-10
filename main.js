@@ -843,13 +843,23 @@ function similarNotes(noteIndex, opts) {
   const threshold = typeof o.threshold === 'number' ? o.threshold : 0.6;
   const limit = Math.max(1, o.limit || 40);
   const grams = {};
+  const gkeys = {};
+  const gsize = {};
   const bucket = {};
-  for (const p of Object.keys(idx)) {
+  const paths = Object.keys(idx);
+  const idOf = {};
+  for (let pi = 0; pi < paths.length; pi++) idOf[paths[pi]] = pi;
+  for (let pi = 0; pi < paths.length; pi++) {
+    const p = paths[pi];
     const n = idx[p] || {};
     const title = n.title || p.split('/').pop().replace(/\.md$/i, '');
     const g = titleGrams(title);
     grams[p] = g;
-    for (const k of Object.keys(g)) {
+    const ks = Object.keys(g);
+    gkeys[p] = ks;
+    gsize[p] = ks.length;
+    for (let ki = 0; ki < ks.length; ki++) {
+      const k = ks[ki];
       if (!bucket[k]) bucket[k] = [];
       bucket[k].push(p);
     }
@@ -863,21 +873,25 @@ function similarNotes(noteIndex, opts) {
       for (let j = i + 1; j < list.length; j++) {
         const a = list[i];
         const b = list[j];
-        const key = a < b ? a + '\u0000' + b : b + '\u0000' + a;
+        const ia = idOf[a];
+        const ib = idOf[b];
+        const key = ia < ib ? ia * 100000 + ib : ib * 100000 + ia;
         if (seen[key]) continue;
         seen[key] = 1;
-        const ga = grams[a];
-        const gb = grams[b];
-        const all = {};
-        for (const x of Object.keys(ga)) all[x] = 1;
-        for (const x of Object.keys(gb)) all[x] = 1;
+        const sa = gsize[a];
+        const sb = gsize[b];
+        if (!sa || !sb) continue;
+        /* 交集最多是小的那个，所以 Jaccard 最多是 min/max；够不着阈值就别算了。 */
+        const lo = sa < sb ? sa : sb;
+        const hi = sa < sb ? sb : sa;
+        if (lo / hi < threshold) continue;
+        const ka = gkeys[a];
+        const small = sa <= sb ? ka : gkeys[b];
+        const big = sa <= sb ? grams[b] : grams[a];
         let inter = 0;
-        let union = 0;
-        for (const x of Object.keys(all)) {
-          union += 1;
-          if (ga[x] && gb[x]) inter += 1;
-        }
-        if (!union) continue;
+        for (let t = 0; t < small.length; t++) if (big[small[t]]) inter += 1;
+        if (!inter) continue;
+        const union = sa + sb - inter;
         const sim = inter / union;
         if (sim < threshold) continue;
         pairs.push({ a: a, b: b, sim: Math.round(sim * 100) / 100 });
@@ -1468,6 +1482,28 @@ function laneSeries(stats, days, nowMs) {
 }
 
 /* 一句状态：只说「动的频率」，不打分、不判好坏。 */
+/* 一条线「隔几天算一次」的间隔；状态列和提醒卡必须用同一个，不然两边说法会打架。 */
+/* 没有「该回头看的旧笔记」时，至少给一篇最近在写的——比一句「没什么要提醒的」有用。 */
+function latestNote(noteIndex) {
+  const idx = noteIndex || {};
+  const keys = Object.keys(idx);
+  let best = null;
+  for (let i = 0; i < keys.length; i++) {
+    const n = idx[keys[i]];
+    if (!n || !n.mtime) continue;
+    if (!best || n.mtime > best.mtime) {
+      best = { path: keys[i], title: n.title || keys[i], words: n.words || 0, mtime: n.mtime };
+    }
+  }
+  return best;
+}
+
+function laneGapDays(perWeek) {
+  const per = perWeek || 0;
+  if (per <= 0) return 7;
+  return Math.max(0.5, 7 / per);
+}
+
 function laneStatus(stats, lane) {
   const per = lane && typeof lane.perWeek === 'number' ? lane.perWeek : 0;
   const quiet = stats ? stats.quietDays : -1;
@@ -1475,8 +1511,7 @@ function laneStatus(stats, lane) {
   if (per > 0) {
     const wk = stats.weekCount || 0;
     if (wk >= per) return { text: '本周 ' + wk + ' 次 · 正好', cls: 'ok' };
-    const gap = Math.max(0.5, 7 / per);
-    if (quiet >= gap * 2) return { text: '本周 ' + wk + ' / ' + per + ' 次 · 安静了 ' + quiet + ' 天', cls: 'warn' };
+    if (quiet >= laneGapDays(per) * 2) return { text: '本周 ' + wk + ' / ' + per + ' 次 · 安静了 ' + quiet + ' 天', cls: 'warn' };
     return { text: '本周 ' + wk + ' / ' + per + ' 次', cls: '' };
   }
   if (quiet === 0) return { text: '今天动过', cls: 'ok' };
@@ -1494,9 +1529,9 @@ function laneAdvice(items) {
     const per = it.lane && it.lane.perWeek ? it.lane.perWeek : 0;
     let score;
     if (per > 0) {
-      const gap = 7 / per;
-      if (st.quietDays < gap * 2) continue;
-      score = st.quietDays / gap;
+      const gapB = laneGapDays(per);
+      if (st.quietDays < gapB * 2) continue;
+      score = st.quietDays / gapB;
     } else {
       if (st.quietDays < 14) continue;
       score = st.quietDays / 14;
@@ -1657,7 +1692,11 @@ function echoLead(text, max) {
     if (end > 0) t = t.slice(end + 4);
   }
   t = t.replace(/```[\s\S]*?```/g, ' ')
-    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/^\s{0,3}#{1,6}\s*/gm, '')
+    .replace(/^\s{0,3}>+\s?/gm, '')
+    .replace(/^\s{0,3}[-*+]\s+/gm, '')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
   if (!t) return '';
@@ -1735,6 +1774,8 @@ const PURE = {
   laneStats: laneStats,
   laneSeries: laneSeries,
   laneStatus: laneStatus,
+  laneGapDays: laneGapDays,
+  latestNote: latestNote,
   laneAdvice: laneAdvice,
   laneAdviceText: laneAdviceText,
   suggestLanes: suggestLanes,
@@ -1792,12 +1833,6 @@ function metricValue(entry, metric) {
   if (!entry) return 0;
   if (metric === 'score') return entry.score || 0;
   return entry[metric] || 0;
-}
-
-function metricText(entry, metric) {
-  const v = metricValue(entry, metric);
-  if (metric === 'focusSec') return fmtDur(v);
-  return fmtInt(v);
 }
 
 function svgMoon(phase, intensity, size) {
@@ -2179,9 +2214,25 @@ class PulseView extends ItemView {
     const n = pickReview(this.plugin.data.noteCache || {}, Date.now(), seed);
     const snoozed = n && this._snoozeDay === dayKeyToday() && this._snoozePath === n.path;
     if (!n || snoozed) {
-      return '<section class="kp-card kp-today-free">'
-        + '<h3>今天没什么要提醒的</h3>'
-        + '<p class="kp-hint">库里没有「写了 50 词以上、超过 30 天没动」的笔记。换个角度看看，点上面的下拉。</p>'
+      const cache = (this.plugin.data && this.plugin.data.noteCache) || {};
+      const fresh = latestNote(cache);
+      if (!fresh) {
+        return '<section class="kp-card kp-today-free">'
+          + '<h3>这个库还是空的</h3>'
+          + '<p class="kp-hint">写下第一篇，明天这里就有东西可说了。上面那条时间带会跟着长出来。</p>'
+          + '</section>';
+      }
+      const agoD = Math.max(0, Math.round((startOfDay(new Date()).getTime() - startOfDay(new Date(fresh.mtime)).getTime()) / 86400000));
+      const whenTxt = agoD === 0 ? '今天写的' : (agoD === 1 ? '昨天写的' : agoD + ' 天前写的');
+      return '<section class="kp-card kp-today-card" data-today="' + escapeHtml(fresh.path) + '">'
+        + '  <div class="kp-today-why">没有该翻的旧账 · 最近在写这篇</div>'
+        + '  <h3 class="kp-today-title">' + escapeHtml(fresh.title) + '</h3>'
+        + '  <p class="kp-today-lead" data-lead="1"></p>'
+        + '  <div class="kp-today-meta">' + whenTxt + ' · ' + fmtInt(fresh.words) + ' 词</div>'
+        + '  <div class="kp-today-acts">'
+        + '    <button class="kp-btn kp-btn-p" data-note="' + escapeHtml(fresh.path) + '">接着写</button>'
+        + '    <button class="kp-btn" data-leave="1">先放着</button>'
+        + '  </div>'
         + '</section>';
     }
     return '<section class="kp-card kp-today-card" data-today="' + escapeHtml(n.path) + '">'
@@ -3199,8 +3250,17 @@ class PulseView extends ItemView {
     }
     const now = Date.now();
     const health = noteHealth(idx, now, {});
-    const sims = similarNotes(idx, { threshold: 0.6, limit: 12 });
-    const pairs = tagPairs(idx, { minCount: 2, limit: 12 });
+    /* 相似标题是这一页最贵的一步，数据没变就直接拿上次的。 */
+    const sig = this._lastSig || '';
+    if (!this._insightCache || this._insightCache.sig !== sig) {
+      this._insightCache = {
+        sig: sig,
+        sims: similarNotes(idx, { threshold: 0.6, limit: 12 }),
+        pairs: tagPairs(idx, { minCount: 2, limit: 12 })
+      };
+    }
+    const sims = this._insightCache.sims;
+    const pairs = this._insightCache.pairs;
     const grid = hourGrid((this.plugin.data && this.plugin.data.sessions) || {});
     const weak = health.items.slice(0, 12);
 
@@ -3851,13 +3911,6 @@ class PulsewrightPlugin extends Plugin {
   /* 当前配置的几条线。 */
   lanes() {
     return parseLanes(this.settings && this.settings.lanesText);
-  }
-
-  /* 跳到本插件设置页。 */
-  openSettings() {
-    try {
-      if (this.app && this.app.setting) this.app.setting.openTabById(this.manifest.id);
-    } catch (e) { /* 取不到就算了 */ }
   }
 
   async activateView() {
