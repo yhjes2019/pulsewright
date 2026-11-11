@@ -2196,6 +2196,10 @@ class PulseView extends ItemView {
     /* 每一页有自己的一个主色，配色靠这个属性走，不用逐处写 case。 */
     const shellEl = this.contentEl.querySelector('.kp-shell');
     if (shellEl) shellEl.setAttribute('data-tab', this.tab);
+    /* 悬停气泡是 body 级复用节点，换页时鼠标不一定触发 mouseleave，得手动收。 */
+    const doc = this.contentEl.ownerDocument || document;
+    const strayTip = doc.querySelector('.kp-tip.is-on');
+    if (strayTip) strayTip.classList.remove('is-on');
     body.empty();
     body.classList.remove('kp-page-in');
     switch (this.tab) {
@@ -2777,13 +2781,20 @@ class PulseView extends ItemView {
   }
 
   renderStrata(body) {
-    const weeks = this.strataWeeks(52);
+    let weeks = this.strataWeeks(52);
+    /* 新库前面几十周都是 0，整块图会挤在最右边像出错了。从第一个有数据的周往前留两周开始画。 */
+    let first = -1;
+    for (let i = 0; i < weeks.length; i++) {
+      const l = weeks[i].layers;
+      if (l[0] + l[1] + l[2] + l[3] > 0) { first = i; break; }
+    }
+    if (first > 2) weeks = weeks.slice(first - 2);
     const total = weeks.reduce(function (a, w) {
       return a + w.layers[0] + w.layers[1] + w.layers[2] + w.layers[3];
     }, 0);
     body.innerHTML = ''
       + '<section class="kp-card">'
-      + '  <div class="kp-sec-head"><h3>知识地层 · 近 52 周</h3><span class="kp-hint">按周堆积</span></div>'
+      + '  <div class="kp-sec-head"><h3>知识地层 · 近 ' + weeks.length + ' 周</h3><span class="kp-hint">按周堆积</span></div>'
       + svgStrata(weeks, {})
       + '  <div class="kp-legend kp-legend-stack">'
       + '    <span><i class="kp-stratum-swatch-0"></i>新增词数</span>'
