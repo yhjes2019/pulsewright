@@ -2193,6 +2193,9 @@ class PulseView extends ItemView {
     if (!body) return;
     const hintEl = this.contentEl.querySelector('.kp-now-hint');
     if (hintEl) hintEl.textContent = PAGE_HINTS[this.tab] || '';
+    /* 每一页有自己的一个主色，配色靠这个属性走，不用逐处写 case。 */
+    const shellEl = this.contentEl.querySelector('.kp-shell');
+    if (shellEl) shellEl.setAttribute('data-tab', this.tab);
     body.empty();
     body.classList.remove('kp-page-in');
     switch (this.tab) {
