@@ -2385,6 +2385,16 @@ class PulseView extends ItemView {
 
   bindTodayCard(body) {
     const self = this;
+    /* 「今天挑完了」那张卡没有 .kp-today-card，所以先绑它，再判断卡片在不在。 */
+    const reset = body.querySelector('[data-reset]');
+    if (reset) {
+      reset.addEventListener('click', function () {
+        self._snoozeDay = dayKeyToday();
+        self._snoozePaths = {};
+        self._shuffle = 0;
+        self.renderBodyOnly();
+      });
+    }
     const card = body.querySelector('.kp-today-card');
     if (!card) return;
     const path = card.getAttribute('data-today');
@@ -2406,14 +2416,6 @@ class PulseView extends ItemView {
         self.renderBodyOnly();
       });
     });
-    const reset = body.querySelector('[data-reset]');
-    if (reset) {
-      reset.addEventListener('click', function () {
-        self._snoozePaths = {};
-        self._shuffle = 0;
-        self.renderBodyOnly();
-      });
-    }
     const lead = card.querySelector('[data-lead]');
     const vault = self.app && self.app.vault;
     const file = vault ? vault.getAbstractFileByPath(path) : null;
