@@ -1483,7 +1483,107 @@ function laneSeries(stats, days, nowMs) {
 
 /* 一句状态：只说「动的频率」，不打分、不判好坏。 */
 /* 一条线「隔几天算一次」的间隔；状态列和提醒卡必须用同一个，不然两边说法会打架。 */
+/* 上周 vs 前一周。今天页只报字数，因为分数对用户没意义。 */
+function weekWordsRecap(daily, nowMs) {
+  const now = new Date(typeof nowMs === 'number' && isFinite(nowMs) ? nowMs : Date.now());
+  const lastStart = addDays(startOfWeek(now), -7);
+  const cur = summarize(daysInWindow(daily || {}, startOfDay(lastStart), addDays(startOfDay(lastStart), 6)));
+  const prev = summarize(daysInWindow(daily || {}, startOfDay(addDays(lastStart, -7)), addDays(startOfDay(lastStart), -1)));
+  const last = cur.words || 0;
+  const before = prev.words || 0;
+  const pct = before > 0 ? Math.round(((last - before) / before) * 100) : (last > 0 ? 100 : 0);
+  return { last: last, before: before, pct: pct, hasData: last > 0 || before > 0 };
+}
+
+/* 库档案：与「哪一页」无关的底账，年度画像页拿来当抬头。 */
+function libraryFacts(noteIndex, daily) {
+  const idx = noteIndex || {};
+  const day = daily || {};
+  const dayKeys = Object.keys(day).sort();
+  let firstDay = '';
+  for (let i = 0; i < dayKeys.length; i++) {
+    if (isActiveDay(day[dayKeys[i]])) { firstDay = dayKeys[i]; break; }
+  }
+  let activeDays = 0;
+  let sumWords = 0;
+  for (let i = 0; i < dayKeys.length; i++) {
+    const e = day[dayKeys[i]];
+    if (isActiveDay(e)) activeDays += 1;
+    sumWords += e.words || 0;
+  }
+  let longest = null;
+  const paths = Object.keys(idx);
+  for (let i = 0; i < paths.length; i++) {
+    const n = idx[paths[i]] || {};
+    if (!longest || (n.words || 0) > longest.words) {
+      longest = { path: paths[i], title: n.title || paths[i], words: n.words || 0 };
+    }
+  }
+  return {
+    firstDay: firstDay,
+    activeDays: activeDays,
+    noteCount: paths.length,
+    avgWords: activeDays > 0 ? Math.round(sumWords / activeDays) : 0,
+    longest: longest
+  };
+}
+
+/* 年报正文。纯函数，写盘由插件负责，方便单测。 */
+function yearReportMarkdown(y, months, facts, summary) {
+  const s = summary || {};
+  const L = [];
+  L.push('# ' + y + ' 年 · 知识脉搏年报');
+  L.push('');
+  L.push('> 由 Pulsewright 在本地生成，只统计数字，不含任何笔记正文。');
+  L.push('');
+  L.push('## 这一年');
+  L.push('');
+  L.push('累计 **' + String(s.score || 0) + '** 分，写了 **' + String(s.words || 0) + '** 个词，新建 **' + String(s.notes || 0) + '** 篇，活跃 **' + String(s.activeDays || 0) + '** 天。');
+  L.push('');
+  if (s.bestDay) L.push('- 最高的一天：' + s.bestDay + '（' + String(s.bestScore || 0) + ' 分）');
+  if (s.topMonth) L.push('- 最用力的月份：' + s.topMonth);
+  if (s.topWeekday) L.push('- 最常动笔的星期：' + s.topWeekday);
+  if (s.topNote) L.push('- 最厚的一篇：《' + s.topNote + '》');
+  L.push('');
+  L.push('## 月度分布');
+  L.push('');
+  L.push('| 月份 | 贡献分 |');
+  L.push('| --- | --- |');
+  (months || []).forEach(function (m) {
+    L.push('| ' + m.label + ' | ' + String(m.value || 0) + ' |');
+  });
+  L.push('');
+  L.push('## 库档案');
+  L.push('');
+  const f = facts || {};
+  L.push('- 第一次动笔：' + (f.firstDay || '—'));
+  L.push('- 有产出的天数：' + String(f.activeDays || 0) + ' 天');
+  L.push('- 平均每天：' + String(f.avgWords || 0) + ' 词');
+  L.push('- 笔记总数：' + String(f.noteCount || 0) + ' 篇');
+  if (f.longest) L.push('- 最长的一篇：《' + f.longest.title + '》' + String(f.longest.words) + ' 词');
+  L.push('');
+  L.push('---');
+  L.push('');
+  L.push('*Pulsewright · 你的知识，有自己的脉搏。*');
+  return L.join('\n');
+}
+
 /* 没有「该回头看的旧笔记」时，至少给一篇最近在写的——比一句「没什么要提醒的」有用。 */
+/* 按修改时间从近到远排前几条。今天页「换一篇」靠它轮流挑。 */
+function recentNotes(noteIndex, limit) {
+  const idx = noteIndex || {};
+  const n = limit || 20;
+  const keys = Object.keys(idx);
+  const rows = [];
+  for (let i = 0; i < keys.length; i++) {
+    const it = idx[keys[i]] || {};
+    if (!it.mtime) continue;
+    rows.push({ path: keys[i], title: it.title || keys[i], words: it.words || 0, mtime: it.mtime });
+  }
+  rows.sort(function (a, b) { return b.mtime - a.mtime; });
+  return rows.slice(0, n);
+}
+
 function latestNote(noteIndex) {
   const idx = noteIndex || {};
   const keys = Object.keys(idx);
@@ -1776,6 +1876,10 @@ const PURE = {
   laneStatus: laneStatus,
   laneGapDays: laneGapDays,
   latestNote: latestNote,
+  recentNotes: recentNotes,
+  weekWordsRecap: weekWordsRecap,
+  libraryFacts: libraryFacts,
+  yearReportMarkdown: yearReportMarkdown,
   laneAdvice: laneAdvice,
   laneAdviceText: laneAdviceText,
   suggestLanes: suggestLanes,
@@ -2177,6 +2281,15 @@ class PulseView extends ItemView {
     }
     const wkSum = wkVals.reduce(function (a, b) { return a + b; }, 0);
 
+    const wrec = weekWordsRecap(daily, Date.now());
+    let weekRecapLine = '';
+    if (wrec.hasData) {
+      const sign = wrec.pct > 0 ? '+' : '';
+      const tone = wrec.pct > 0 ? ' is-up' : (wrec.pct < 0 ? ' is-down' : '');
+      weekRecapLine = '<div class="kp-wk-recap mono' + tone + '">上周 ' + fmtInt(wrec.last)
+        + ' 字 · 比前一周 ' + sign + wrec.pct + '%</div>';
+    }
+
     const picks = echoPicks((this.plugin.data && this.plugin.data.noteCache) || {}, Date.now(), 2);
 
     const sign = diff > 0 ? '+' : '';
@@ -2199,6 +2312,7 @@ class PulseView extends ItemView {
       + '  <div class="kp-op-week">'
       + '    <div class="kp-op-week-hd"><span>最近七天</span><em>共 ' + fmtInt(wkSum) + ' 字</em></div>'
       + '    <div class="kp-wk">' + wkBars.join('') + '</div>'
+      + '    ' + weekRecapLine
       + '  </div>'
       + '</section>'
       + this.todayCard()
@@ -2210,12 +2324,13 @@ class PulseView extends ItemView {
 
   /* 一屏里唯一一张卡：一篇你很久没打开、但当时写得不少的笔记。 */
   todayCard() {
-    const seed = parseInt(dayKeyToday().replace(/-/g, ''), 10) || 0;
+    const seed = (parseInt(dayKeyToday().replace(/-/g, ''), 10) || 0) + (this._shuffle || 0) * 7919;
     const n = pickReview(this.plugin.data.noteCache || {}, Date.now(), seed);
     const snoozed = n && this._snoozeDay === dayKeyToday() && this._snoozePath === n.path;
     if (!n || snoozed) {
       const cache = (this.plugin.data && this.plugin.data.noteCache) || {};
-      const fresh = latestNote(cache);
+      const recents = recentNotes(cache, 30);
+      const fresh = recents.length ? recents[(this._shuffle || 0) % recents.length] : null;
       if (!fresh) {
         return '<section class="kp-card kp-today-free">'
           + '<h3>这个库还是空的</h3>'
@@ -2225,12 +2340,13 @@ class PulseView extends ItemView {
       const agoD = Math.max(0, Math.round((startOfDay(new Date()).getTime() - startOfDay(new Date(fresh.mtime)).getTime()) / 86400000));
       const whenTxt = agoD === 0 ? '今天写的' : (agoD === 1 ? '昨天写的' : agoD + ' 天前写的');
       return '<section class="kp-card kp-today-card" data-today="' + escapeHtml(fresh.path) + '">'
-        + '  <div class="kp-today-why">没有该翻的旧账 · 最近在写这篇</div>'
+        + '  <div class="kp-today-why">' + ((this._shuffle || 0) > 0 ? '没有该翻的旧账 · 换了一篇近期的' : '没有该翻的旧账 · 最近在写这篇') + '</div>'
         + '  <h3 class="kp-today-title">' + escapeHtml(fresh.title) + '</h3>'
         + '  <p class="kp-today-lead" data-lead="1"></p>'
         + '  <div class="kp-today-meta">' + whenTxt + ' · ' + fmtInt(fresh.words) + ' 词</div>'
         + '  <div class="kp-today-acts">'
         + '    <button class="kp-btn kp-btn-p" data-note="' + escapeHtml(fresh.path) + '">接着写</button>'
+        + '    <button class="kp-btn" data-shuffle="1">换一篇</button>'
         + '    <button class="kp-btn" data-leave="1">先放着</button>'
         + '  </div>'
         + '</section>';
@@ -2242,6 +2358,7 @@ class PulseView extends ItemView {
       + '  <div class="kp-today-meta">' + dayKeyOf(n.mtime) + ' 写的 · ' + fmtInt(n.words) + ' 词</div>'
       + '  <div class="kp-today-acts">'
       + '    <button class="kp-btn kp-btn-p" data-note="' + escapeHtml(n.path) + '">打开接着写</button>'
+      + '    <button class="kp-btn" data-shuffle="1">换一篇</button>'
       + '    <button class="kp-btn" data-snooze="' + escapeHtml(n.path) + '">先放着</button>'
       + '  </div>'
       + '</section>';
@@ -2254,6 +2371,13 @@ class PulseView extends ItemView {
     const path = card.getAttribute('data-today');
     card.querySelectorAll('[data-note]').forEach(function (b) {
       b.addEventListener('click', function (ev) { ev.preventDefault(); self.openNote(path); });
+    });
+    card.querySelectorAll('[data-shuffle]').forEach(function (b) {
+      b.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        self._shuffle = (self._shuffle || 0) + 1;
+        self.renderBodyOnly();
+      });
     });
     card.querySelectorAll('[data-snooze]').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -2763,12 +2887,32 @@ class PulseView extends ItemView {
       + '累计 <b>' + fmtInt(total) + '</b> 分。最用力的是 <b>' + (topMonth && topMonth.value ? topMonth.label : '—') + '</b>，'
       + '最常在 <b>' + (topWeekday && topWeekday.value ? topWeekday.label : '—') + '</b> 动笔。'
       + (bestDay ? '单日最高出现在 <b>' + bestDay + '</b>（' + bestScore + ' 分）。' : '')
-      + '</p></section>';
+      + '</p></section>'
+      + this.libraryCard(y);
 
     const self = this;
     body.querySelectorAll('[data-year]').forEach(function (b) {
       b.addEventListener('click', function () { self.yearPick = parseInt(b.getAttribute('data-year'), 10); self.renderBodyOnly(); });
     });
+    const rep8 = body.querySelector('[data-act="year-report"]');
+    if (rep8) rep8.addEventListener('click', function () { self.plugin.exportYearReport(self.yearPick); });
+  }
+
+  /* 库档案：不属于某一年，是整个库的底账。 */
+  libraryCard(y) {
+    const f = libraryFacts(this.plugin.data.noteCache || {}, this.daily());
+    const longest = f.longest && f.longest.words
+      ? '<div class="kp-lib-item"><span>最长的一篇</span><b>' + escapeHtml(f.longest.title) + '</b><em>' + fmtInt(f.longest.words) + ' 词</em></div>'
+      : '';
+    return '<section class="kp-card">'
+      + '<div class="kp-sec-head"><h3>库档案</h3>'
+      + '  <button class="kp-btn" data-act="year-report">导出 ' + y + ' 年报</button></div>'
+      + '<div class="kp-lib">'
+      + '  <div class="kp-lib-item"><span>第一次动笔</span><b>' + (f.firstDay || '—') + '</b><em>' + fmtInt(f.activeDays) + ' 天有产出</em></div>'
+      + '  <div class="kp-lib-item"><span>平均每天</span><b>' + fmtInt(f.avgWords) + '</b><em>词</em></div>'
+      + '  <div class="kp-lib-item"><span>笔记总数</span><b>' + fmtInt(f.noteCount) + '</b><em>篇</em></div>'
+      + longest
+      + '</div></section>';
   }
 
   /* ---------- 知识复盘 ---------- */
@@ -4005,6 +4149,56 @@ class PulsewrightPlugin extends Plugin {
   async exportCSV() {
     const stamp = dayKeyToday().replace(/-/g, '');
     const path = await this.writeVaultFile('导出/Pulsewright-' + stamp + '.csv', this.csvText());
+    new Notice('已导出 ' + path);
+  }
+
+  async exportYearReport(year) {
+    const y = year || new Date().getFullYear();
+    const daily = this.data.daily || {};
+    const months = [];
+    let total = 0, words = 0, notes = 0, activeDays = 0, bestDay = '', bestScore = 0;
+    for (let m = 0; m < 12; m++) {
+      let v = 0;
+      const dim = new Date(y, m + 1, 0).getDate();
+      for (let d = 1; d <= dim; d++) {
+        const k = y + '-' + pad2(m + 1) + '-' + pad2(d);
+        const e = daily[k];
+        if (!e) continue;
+        v += e.score || 0;
+        total += e.score || 0;
+        words += e.words || 0;
+        notes += e.notes || 0;
+        if (isActiveDay(e)) activeDays += 1;
+        if ((e.score || 0) > bestScore) { bestScore = e.score || 0; bestDay = k; }
+      }
+      months.push({ label: MONTH_CN[m], value: v });
+    }
+    const topMonth = months.reduce(function (a, b) { return b.value > a.value ? b : a; }, months[0]);
+    const WD_CN = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    const wdSum = [0, 0, 0, 0, 0, 0, 0];
+    Object.keys(daily).forEach(function (k) {
+      const e = daily[k];
+      if (!e) return;
+      const d = new Date(k + 'T00:00:00');
+      if (isNaN(d.getTime())) return;
+      wdSum[d.getDay()] += e.score || 0;
+    });
+    let topIdx = 0;
+    for (let wi = 1; wi < 7; wi++) if (wdSum[wi] > wdSum[topIdx]) topIdx = wi;
+    const topWeekday = wdSum[topIdx] > 0 ? { label: WD_CN[topIdx], value: wdSum[topIdx] } : null;
+    const facts = libraryFacts(this.data.noteCache || {}, daily);
+    const md = yearReportMarkdown(y, months, facts, {
+      score: total,
+      words: words,
+      notes: notes,
+      activeDays: activeDays,
+      bestDay: bestDay,
+      bestScore: bestScore,
+      topMonth: topMonth && topMonth.value ? topMonth.label : '',
+      topWeekday: topWeekday && topWeekday.value ? topWeekday.label : '',
+      topNote: facts.longest && facts.longest.words ? facts.longest.title : ''
+    });
+    const path = await this.writeVaultFile('导出/Pulsewright-' + y + '年报.md', md);
     new Notice('已导出 ' + path);
   }
 

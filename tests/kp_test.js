@@ -492,6 +492,40 @@ ok('fmtDur 小时', P.fmtDur(7200) === '2.0 小时');
   ok('laneMatch 空规则', P.laneMatch(laneIdx['c/随手.md'], { match: '' }) === false);
   ok('echoLead 去掉引用块标记', P.echoLead('> 今天练了三个小时的转位。') === '今天练了三个小时的转位。', P.echoLead('> 今天练了三个小时的转位。'));
   ok('echoLead 去掉链接只留文字', P.echoLead('参见[旧稿](x.md)里的说法。') === '参见旧稿里的说法。', P.echoLead('参见[旧稿](x.md)里的说法。'));
+  // 周对比：上周 vs 前一周（用固定的 now）
+  const wkDay = new Date(2026, 10, 11, 12, 0).getTime();   // 2026-11-11 周三
+  const wkDaily = {};
+  ['2026-11-02', '2026-11-03', '2026-11-04'].forEach(function (k) { wkDaily[k] = { words: 100, score: 10, notes: 1 }; });
+  ['2026-10-26', '2026-10-27'].forEach(function (k) { wkDaily[k] = { words: 50, score: 5, notes: 1 }; });
+  const wrec = P.weekWordsRecap(wkDaily, wkDay);
+  ok('weekWordsRecap 上周字数', wrec.last === 300, String(wrec.last));
+  ok('weekWordsRecap 前一周字数', wrec.before === 100, String(wrec.before));
+  ok('weekWordsRecap 涨幅', wrec.pct === 200, String(wrec.pct));
+  ok('weekWordsRecap 空库不发', P.weekWordsRecap({}, wkDay).hasData === false);
+
+  // 库档案
+  const libFacts = P.libraryFacts(
+    { 'a.md': { title: '甲', words: 900, mtime: 1 }, 'b.md': { title: '乙', words: 40, mtime: 2 } },
+    { '2026-11-01': { words: 200, score: 10, notes: 1 }, '2026-11-02': { words: 300, score: 10, notes: 1 } }
+  );
+  ok('libraryFacts 第一次动笔', libFacts.firstDay === '2026-11-01', libFacts.firstDay);
+  ok('libraryFacts 活跃天数', libFacts.activeDays === 2, String(libFacts.activeDays));
+  ok('libraryFacts 平均词数', libFacts.avgWords === 250, String(libFacts.avgWords));
+  ok('libraryFacts 最长的一篇', libFacts.longest.path === 'a.md', libFacts.longest.path);
+
+  // 年报
+  const rep = P.yearReportMarkdown(2026, [{ label: '一月', value: 12 }], libFacts, {
+    score: 88, words: 500, notes: 2, activeDays: 2, bestDay: '2026-11-02', bestScore: 40,
+    topMonth: '十一月', topWeekday: '周日', topNote: '甲'
+  });
+  ok('年报含标题', rep.indexOf('# 2026 年') === 0, rep.slice(0, 20));
+  ok('年报含月度表', rep.indexOf('| 一月 | 12 |') > 0);
+  ok('年报含库档案', rep.indexOf('第一次动笔：2026-11-01') > 0);
+  ok('年报声明不含正文', rep.indexOf('只统计数字，不含任何笔记正文') > 0);
+
+  const rn = P.recentNotes({ 'x.md': { title: 'X', words: 5, mtime: 10 }, 'y.md': { title: 'Y', words: 9, mtime: 30 } }, 5);
+  ok('recentNotes 按时间倒序', rn[0].path === 'y.md' && rn[1].path === 'x.md', JSON.stringify(rn.map(function (r) { return r.path; })));
+  ok('recentNotes 跳过无 mtime', P.recentNotes({ 'z.md': { title: 'Z' } }, 5).length === 0);
   ok('latestNote 空库返回 null', P.latestNote({}) === null);
   ok('latestNote 取最新一篇', P.latestNote({ 'a.md': { mtime: 100, title: 'A' }, 'b.md': { mtime: 300, title: 'B' } }).path === 'b.md');
   ok('laneGapDays 无节奏返回 7', P.laneGapDays(0) === 7, String(P.laneGapDays(0)));
