@@ -2323,43 +2323,62 @@ class PulseView extends ItemView {
   }
 
   /* 一屏里唯一一张卡：一篇你很久没打开、但当时写得不少的笔记。 */
+  /* 今天被「先放着」的笔记，按天记；跨天自动清空。 */
+  snoozedToday() {
+    if (this._snoozeDay !== dayKeyToday()) {
+      this._snoozeDay = dayKeyToday();
+      this._snoozePaths = {};
+    }
+    if (!this._snoozePaths) this._snoozePaths = {};
+    return this._snoozePaths;
+  }
+
   todayCard() {
-    const seed = (parseInt(dayKeyToday().replace(/-/g, ''), 10) || 0) + (this._shuffle || 0) * 7919;
-    const n = pickReview(this.plugin.data.noteCache || {}, Date.now(), seed);
-    const snoozed = n && this._snoozeDay === dayKeyToday() && this._snoozePath === n.path;
-    if (!n || snoozed) {
-      const cache = (this.plugin.data && this.plugin.data.noteCache) || {};
-      const recents = recentNotes(cache, 30);
-      const fresh = recents.length ? recents[(this._shuffle || 0) % recents.length] : null;
-      if (!fresh) {
-        return '<section class="kp-card kp-today-free">'
-          + '<h3>这个库还是空的</h3>'
-          + '<p class="kp-hint">写下第一篇，明天这里就有东西可说了。上面那条时间带会跟着长出来。</p>'
-          + '</section>';
-      }
-      const agoD = Math.max(0, Math.round((startOfDay(new Date()).getTime() - startOfDay(new Date(fresh.mtime)).getTime()) / 86400000));
-      const whenTxt = agoD === 0 ? '今天写的' : (agoD === 1 ? '昨天写的' : agoD + ' 天前写的');
-      return '<section class="kp-card kp-today-card" data-today="' + escapeHtml(fresh.path) + '">'
-        + '  <div class="kp-today-why">' + ((this._shuffle || 0) > 0 ? '没有该翻的旧账 · 换了一篇近期的' : '没有该翻的旧账 · 最近在写这篇') + '</div>'
-        + '  <h3 class="kp-today-title">' + escapeHtml(fresh.title) + '</h3>'
-        + '  <p class="kp-today-lead" data-lead="1"></p>'
-        + '  <div class="kp-today-meta">' + whenTxt + ' · ' + fmtInt(fresh.words) + ' 词</div>'
-        + '  <div class="kp-today-acts">'
-        + '    <button class="kp-btn kp-btn-p" data-note="' + escapeHtml(fresh.path) + '">接着写</button>'
-        + '    <button class="kp-btn" data-shuffle="1">换一篇</button>'
-        + '    <button class="kp-btn" data-leave="1">先放着</button>'
-        + '  </div>'
+    const skip = this.snoozedToday();
+    const cache = (this.plugin.data && this.plugin.data.noteCache) || {};
+    const seedBase = parseInt(dayKeyToday().replace(/-/g, ''), 10) || 0;
+
+    // 1) 先按「该翻的旧账」挑，跳过今天已经放下的
+    for (let k = 0; k <= (this._shuffle || 0); k++) {
+      const cand = pickReview(cache, Date.now(), seedBase + k * 7919);
+      if (!cand) break;
+      if (skip[cand.path]) continue;
+      if (k < (this._shuffle || 0)) continue;
+      return this.todayCardHtml(cand.path, cand.title, cand.words,
+        '这篇你已经 ' + cand.days + ' 天没打开了',
+        dayKeyOf(cand.mtime) + ' 写的 · ' + fmtInt(cand.words) + ' 词', '打开接着写');
+    }
+
+    // 2) 没有旧账可翻（或全被放下了）：在最近写过的几篇里轮一个
+    const recents = recentNotes(cache, 40).filter(function (r) { return !skip[r.path]; });
+    if (!recents.length) {
+      const anyNote = Object.keys(cache).length > 0;
+      return '<section class="kp-card kp-today-free">'
+        + '<h3>' + (anyNote ? '今天挑完了' : '这个库还是空的') + '</h3>'
+        + '<p class="kp-hint">' + (anyNote
+          ? '放下的都记住了，明天再给你看。想再看一轮就点下面。'
+          : '写下第一篇，明天这里就有东西可说了。上面那条时间带会跟着长出来。') + '</p>'
+        + (anyNote ? '<div class="kp-today-acts"><button class="kp-btn" data-reset="1">再来一轮</button></div>' : '')
         + '</section>';
     }
-    return '<section class="kp-card kp-today-card" data-today="' + escapeHtml(n.path) + '">'
-      + '  <div class="kp-today-why">这篇你已经 ' + n.days + ' 天没打开了</div>'
-      + '  <h3 class="kp-today-title">' + escapeHtml(n.title) + '</h3>'
+    const fresh = recents[(this._shuffle || 0) % recents.length];
+    const agoD = Math.max(0, Math.round((startOfDay(new Date()).getTime() - startOfDay(new Date(fresh.mtime)).getTime()) / 86400000));
+    const whenTxt = agoD === 0 ? '今天写的' : (agoD === 1 ? '昨天写的' : agoD + ' 天前写的');
+    const why = (this._shuffle || 0) > 0 ? '没有该翻的旧账 · 换了一篇近期的' : '没有该翻的旧账 · 最近在写这篇';
+    return this.todayCardHtml(fresh.path, fresh.title, fresh.words,
+      why, whenTxt + ' · ' + fmtInt(fresh.words) + ' 词', '接着写');
+  }
+
+  todayCardHtml(path, title, words, why, meta, openLabel) {
+    return '<section class="kp-card kp-today-card" data-today="' + escapeHtml(path) + '">'
+      + '  <div class="kp-today-why">' + why + '</div>'
+      + '  <h3 class="kp-today-title">' + escapeHtml(title) + '</h3>'
       + '  <p class="kp-today-lead" data-lead="1"></p>'
-      + '  <div class="kp-today-meta">' + dayKeyOf(n.mtime) + ' 写的 · ' + fmtInt(n.words) + ' 词</div>'
+      + '  <div class="kp-today-meta">' + meta + '</div>'
       + '  <div class="kp-today-acts">'
-      + '    <button class="kp-btn kp-btn-p" data-note="' + escapeHtml(n.path) + '">打开接着写</button>'
+      + '    <button class="kp-btn kp-btn-p" data-note="' + escapeHtml(path) + '">' + openLabel + '</button>'
       + '    <button class="kp-btn" data-shuffle="1">换一篇</button>'
-      + '    <button class="kp-btn" data-snooze="' + escapeHtml(n.path) + '">先放着</button>'
+      + '    <button class="kp-btn" data-snooze="' + escapeHtml(path) + '">先放着</button>'
       + '  </div>'
       + '</section>';
   }
@@ -2381,11 +2400,20 @@ class PulseView extends ItemView {
     });
     card.querySelectorAll('[data-snooze]').forEach(function (b) {
       b.addEventListener('click', function () {
-        self._snoozePath = path;
-        self._snoozeDay = dayKeyToday();
+        const sk = self.snoozedToday();
+        sk[b.getAttribute('data-snooze') || path] = 1;
+        self._shuffle = 0;
         self.renderBodyOnly();
       });
     });
+    const reset = body.querySelector('[data-reset]');
+    if (reset) {
+      reset.addEventListener('click', function () {
+        self._snoozePaths = {};
+        self._shuffle = 0;
+        self.renderBodyOnly();
+      });
+    }
     const lead = card.querySelector('[data-lead]');
     const vault = self.app && self.app.vault;
     const file = vault ? vault.getAbstractFileByPath(path) : null;
