@@ -2339,37 +2339,38 @@ class PulseView extends ItemView {
     const seedBase = parseInt(dayKeyToday().replace(/-/g, ''), 10) || 0;
 
     // 1) 先按「该翻的旧账」挑，跳过今天已经放下的
-    for (let k = 0; k <= (this._shuffle || 0); k++) {
-      const cand = pickReview(cache, Date.now(), seedBase + k * 7919);
-      if (!cand) break;
-      if (skip[cand.path]) continue;
-      if (k < (this._shuffle || 0)) continue;
-      return this.todayCardHtml(cand.path, cand.title, cand.words,
+    const cand = pickReview(cache, Date.now(), seedBase);
+    if (cand && !skip[cand.path]) {
+      return this.todayCardHtml(cand.path, cand.title,
         '这篇你已经 ' + cand.days + ' 天没打开了',
         dayKeyOf(cand.mtime) + ' 写的 · ' + fmtInt(cand.words) + ' 词', '打开接着写');
     }
 
-    // 2) 没有旧账可翻（或全被放下了）：在最近写过的几篇里轮一个
+    // 2) 没有旧账可翻（或已被放下）：在最近写过的几篇里挑第一篇没放下的
     const recents = recentNotes(cache, 40).filter(function (r) { return !skip[r.path]; });
     if (!recents.length) {
       const anyNote = Object.keys(cache).length > 0;
       return '<section class="kp-card kp-today-free">'
         + '<h3>' + (anyNote ? '今天挑完了' : '这个库还是空的') + '</h3>'
         + '<p class="kp-hint">' + (anyNote
-          ? '放下的都记住了，明天再给你看。想再看一轮就点下面。'
+          ? '放下的都记住了，明天再给你看。'
           : '写下第一篇，明天这里就有东西可说了。上面那条时间带会跟着长出来。') + '</p>'
-        + (anyNote ? '<div class="kp-today-acts"><button class="kp-btn" data-reset="1">再来一轮</button></div>' : '')
+        + (anyNote ? '<div class="kp-today-acts"><button class="kp-btn" data-reset="1">全部恢复</button></div>' : '')
         + '</section>';
     }
-    const fresh = recents[(this._shuffle || 0) % recents.length];
+    const fresh = recents[0];
     const agoD = Math.max(0, Math.round((startOfDay(new Date()).getTime() - startOfDay(new Date(fresh.mtime)).getTime()) / 86400000));
     const whenTxt = agoD === 0 ? '今天写的' : (agoD === 1 ? '昨天写的' : agoD + ' 天前写的');
-    const why = (this._shuffle || 0) > 0 ? '没有该翻的旧账 · 换了一篇近期的' : '没有该翻的旧账 · 最近在写这篇';
-    return this.todayCardHtml(fresh.path, fresh.title, fresh.words,
-      why, whenTxt + ' · ' + fmtInt(fresh.words) + ' 词', '接着写');
+    return this.todayCardHtml(fresh.path, fresh.title,
+      '没有该翻的旧账 · 最近在写这篇',
+      whenTxt + ' · ' + fmtInt(fresh.words) + ' 词', '接着写');
   }
 
-  todayCardHtml(path, title, words, why, meta, openLabel) {
+  todayCardHtml(path, title, why, meta, openLabel) {
+    const left = Object.keys(this.snoozedToday()).length;
+    const undo = left > 0
+      ? '<div class="kp-today-undo"><button class="kp-today-undo-btn" data-reset="1">今天放下了 ' + left + ' 篇 · 恢复</button></div>'
+      : '';
     return '<section class="kp-card kp-today-card" data-today="' + escapeHtml(path) + '">'
       + '  <div class="kp-today-why">' + why + '</div>'
       + '  <h3 class="kp-today-title">' + escapeHtml(title) + '</h3>'
@@ -2377,9 +2378,9 @@ class PulseView extends ItemView {
       + '  <div class="kp-today-meta">' + meta + '</div>'
       + '  <div class="kp-today-acts">'
       + '    <button class="kp-btn kp-btn-p" data-note="' + escapeHtml(path) + '">' + openLabel + '</button>'
-      + '    <button class="kp-btn" data-shuffle="1">换一篇</button>'
       + '    <button class="kp-btn" data-snooze="' + escapeHtml(path) + '">先放着</button>'
       + '  </div>'
+      + undo
       + '</section>';
   }
 
@@ -2391,7 +2392,6 @@ class PulseView extends ItemView {
       reset.addEventListener('click', function () {
         self._snoozeDay = dayKeyToday();
         self._snoozePaths = {};
-        self._shuffle = 0;
         self.renderBodyOnly();
       });
     }
@@ -2401,18 +2401,10 @@ class PulseView extends ItemView {
     card.querySelectorAll('[data-note]').forEach(function (b) {
       b.addEventListener('click', function (ev) { ev.preventDefault(); self.openNote(path); });
     });
-    card.querySelectorAll('[data-shuffle]').forEach(function (b) {
-      b.addEventListener('click', function (ev) {
-        ev.preventDefault();
-        self._shuffle = (self._shuffle || 0) + 1;
-        self.renderBodyOnly();
-      });
-    });
     card.querySelectorAll('[data-snooze]').forEach(function (b) {
       b.addEventListener('click', function () {
         const sk = self.snoozedToday();
         sk[b.getAttribute('data-snooze') || path] = 1;
-        self._shuffle = 0;
         self.renderBodyOnly();
       });
     });
