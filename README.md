@@ -7,9 +7,9 @@
 <br clear="left" />
 
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![version](https://img.shields.io/badge/version-1.0.2-green.svg)](https://github.com/yhjes2019/pulsewright/releases)
+[![version](https://img.shields.io/badge/version-1.0.3-green.svg)](https://github.com/yhjes2019/pulsewright/releases)
 [![min obsidian](https://img.shields.io/badge/Obsidian-%E2%89%A5%201.6.0-7c3aed.svg)](https://obsidian.md)
-[![tests](https://img.shields.io/badge/tests-228%20passing-brightgreen.svg)](tests/kp_test.js)
+[![tests](https://img.shields.io/badge/tests-289%20passing-brightgreen.svg)](tests/kp_test.js)
 
 **中文** ｜ [English](#english)
 
@@ -22,6 +22,8 @@
 Obsidian 自带的反向链接和图谱解决不了这些。市面上的同类面板我也试过，多数要么要注册账号，要么得联网校验一下，要么不开源——我不太想把整个笔记库的统计交给一个看不见内部的东西。
 
 所以就有了这个。它的目标很窄：把库里的 Markdown 读一遍，算出一堆关于你的数字，画出来，然后闭嘴。
+
+**1.0.3 换了首页的出发点。**前三版都在回答「我写了多少」，那是个看一眼就完的问题——数字好不好，第二天都一样。这一版改成回答另外三件事：今天怎么样、有没有哪条线是我说要在意却断了的、现在能动手做哪一件。分数从门面上撤下来，想看还在数据页。详细清单在 [CHANGELOG.md](CHANGELOG.md)。
 
 它不发请求。不是「默认关闭」那种不发，是代码里压根没有发请求的那几行——`main.js` 全文只有一句 `require('obsidian')`，没有 `fetch`、没有 `XMLHttpRequest`、没有 `requestUrl`，也没有任何一个 http 地址。断网照常用。
 
@@ -39,31 +41,45 @@ Obsidian 自带的反向链接和图谱解决不了这些。市面上的同类�
 
 ## 里面有什么
 
-十个标签页。我按自己用的频率排的，惦记在最前，数据在最后。
+**打开就是一个页面，不是一个菜单。**
 
-**惦记** —— 打开就看到的地方。你写几条自己在意的事，每条给一个规则和节奏，它画成一条 12 周的时间带：哪天动过就亮一格，一片空白就是那几天没碰。某条线超过自己节奏两倍时间没动，最底下会出一张小卡片，除了告诉你安静了几天，还给你一个「推迟到某天」的选项——被催着和被提醒着，是两种感觉。
+左上角那个 `今天 ▾` 点开是四栏：**现在 / 时间 / 内容 / 做事**。常用的两页在第一栏，其余收在下面，不占视线；不点它的时候，你看不到任何页签。
 
-**今天** —— 三个事实：今天写了多少字、动过哪几篇、连着写了几天。下面一条年度热力图（六种指标可切）、近 30 天曲线和星期分布。再往下是「回声」：从一年前、一个月前、三年前的同一天附近各挑一篇旧笔记，把第一句话放在这里，点标题跳回原文。这一天不显示任何分数。
+一共十一个页面。
 
-**知识地层** —— 近 52 周按周堆起来的四层面积图（词数、新建、内链、修订）。我想看的是形状：哪几周塌下去了，塌的时候是只停了写，还是连链接都不加了。四层各自归一化再叠，不然词数会把另外三层压成一条线。
+**今天** —— 默认页，也是我每天唯一会看的一页。三个数字：今天写了多少字、动过哪几篇、连着写了几天。每个数字底下跟一行参照（比昨天多/少多少、近七天日均、最长连了几天），不让你对着一串数字猜好坏。
 
-**月相日历** —— 每天一个月亮，亮的部分就是当天的产出强度。接近满月就是高产日。可以翻上月、本月、下月。纯粹觉得比一格格色块好看，用久了确实能一眼扫出「这个月中旬我停了一周」。
+再往下是两条带子：一条 12 周的时间带（哪天写过就亮一格，带月份刻度），一条最近七天的柱子，右边写着上周总共多少字、比前一周涨了还是跌了百分之几。
 
-**年度画像** —— 年度总分、最高的一天、最活跃的月份和星期，加一张月度柱状图。年底回看挺有意思。
+最下面一张卡只做一件事：给你一篇现在就能动手的笔记。优先挑「写过 50 词以上、超过 30 天没动」的旧账；库里没有旧账，就推最近在写的那篇。两个按钮：「接着写」直接打开，「先放着」换下一篇并记住。放下的都算今天放下过——按钮底下会出现一行「今天放下了 N 篇 · 恢复」，点一下全放回来；全放下之后它会说「今天挑完了」，明天再给你看。
 
-**知识复盘** —— 本周和上周并排对比，四项指标各自涨跌。可以一键生成周报 Markdown，复制走或者直接写进库里。
+卡片再往下是**回声**：一年前、一个月前、三年前的同一天附近各挑一篇，摘第一句话放在这里，点标题跳回原文。库里还没有够老的笔记时，这一块会自己说「等它长大一点」，不会硬凑。
 
-**笔记地图** —— 标签云、目录分布、孤儿笔记（没有任何笔记链进来）、断链（链到不存在的标题）、久未更新（阈值可设）。还能按标题或路径搜笔记。整张地图可以导出成 Markdown 存回库里。
+**惦记** —— 你自己说要在意的几件事。一行一条 `名称 | 匹配 | 每周几次`，它画成一条 12 周的时间带：哪天动过就亮一格，缺一块就是那几天没碰。某条线超过自己节奏的两倍时间没动，底下会出一张小卡片，除了告诉你安静了几天，还给你两个出口——「打开那篇」，或者「记一笔推迟」（直接写进速记）。被催着和被提醒着，是两种感觉。
 
-**洞察** —— 这块回答的是「我怎么写的」而不是「我写了多少」。写作时段是个 7×24 的网格，能看出你是夜猫子还是早起型；笔记健康度分 A/B/C/D 四档；还有近似重复的标题、标签共现。
+第一次打开这一页是一块预填好的文本框，里面是它从你库里扫出来的、最常见的几个目录。改成你真在意的事，点「开始」就行。不想配也可以，其余页面照常能用。
 
-**速记** —— 随手记一行，回车就追加到 `Pulse/速记.md`。能搜、能逐条改、能删、能一次导出。
+**概览** —— 全量数字。五档时间范围（近 7 天 / 30 天 / 90 天 / 一年 / 全部），五张指标卡（活跃天数、当前连续、投入时间、新增词数、内链与修订），一张年度热力图（六种指标可切：新增词数、新建笔记、内链数、修订次数、深度专注、贡献分——贡献分排在最后），近 30 天曲线和星期分布。
 
-**数据** —— 已索引多少篇、有多少天有记录、当前公式长什么样、导出 CSV / JSON / 完整备份、重建索引，以及分享卡。
+首页不再用分数当门面。原来那张「累计贡献分」的大卡挪到了数据页。
 
-时间范围五档：近 7 天 / 30 天 / 90 天 / 一年 / 全部。热力图指标六种：贡献分、新增词数、新建笔记、内链数、修订次数、深度专注。
+**知识地层** —— 按周堆起来的四层面积图（词数、新建、内链、修订）。我想看的是形状：哪几周塌下去了，塌的时候是只停了写，还是连链接都不加了。四层各自归一化再叠，不然词数会把另外三层压成一条线。库里数据不够一年时，图会自动从第一周有数据的地方开始画，标题里的周数跟着变。
 
-看板最下面还有一张「今日回顾」：每天从「写过 50 词以上、而且超过 30 天没动」的笔记里挑一篇出来，提醒你回去补一句。同一天刷新不会换人，隔天自动换。这功能有点烦人，但我留着它是有原因的——我库里躺着一堆写了开头就断掉的稿子。
+**月相日历** —— 每天一个月亮，亮的部分就是当天的产出强度。接近满月就是高产日。可以翻上月、本月、下月。
+
+**年度画像** —— 年度总分、最高的一天、最活跃的月份和星期，加一张月度柱状图，再下面一句「这一年」的总结。最底下的**库档案**记四件事：第一次动笔是哪天、平均每天多少字、一共多少篇、最长的一篇是哪篇。旁边一个「导出年报」按钮，生成一份只含数字、不含任何笔记正文的 Markdown。
+
+**知识复盘** —— 本周和上周并排，四项指标各自涨跌。可以一键生成周报 Markdown，复制走或者直接写进库里。
+
+**笔记地图** —— 标签云、目录分布、孤儿笔记（没有任何笔记链进来）、断链（链到不存在的标题）、久未更新（阈值可设），加上按标题或路径搜笔记。整张地图可以导出成 Markdown 存回库里。
+
+**洞察** —— 这块回答的是「我怎么写的」而不是「我写了多少」。写作时段是个 7×24 的网格，能看出你是夜猫子还是早起型；笔记健康度分 A/B/C/D 四档；还有近似重复的标题、标签共现。这一页原来算得慢（两百篇要 150 毫秒），现在相似标题的比较算法重写过，快了 3.5 倍，结果也会缓存。
+
+**速记** —— 随手记一行，回车追加到 `Pulse/速记.md`。能搜、能逐条改、能删、能一次导出。
+
+**数据** —— 已索引多少篇、多少天有记录、上次扫描花了多久、累计贡献分（只有这一页看得到）、评分公式、导出 CSV / JSON / 完整备份、重建索引，以及分享卡。
+
+外观上有三样可以调：**画风**（像素 / 水墨 / 极简 / 星图）、**面板材质**（实心 / 毛玻璃 / 亚克力）、**每一页有自己的主色**（今天用青、惦记和时间类用蓝、复盘地图洞察用紫、速记和数据用琥珀）。主色是贯穿的，页签、标题前的小点、柱子、当天那格、主按钮都跟着走，翻页时整块的调子会变。
 
 <details>
 <summary>更多截图</summary>
@@ -108,13 +124,13 @@ PNG 是拿 canvas 现转的，不用装任何东西。万一某个环境里拿�
 
 已经上架 Obsidian 社区市场，直接在「设置 → 第三方插件 → 浏览」里搜 `Pulsewright` 就能装。想手动装也行，两种包都在 [Releases](https://github.com/yhjes2019/pulsewright/releases) 里。
 
-**Windows 最省事：跑安装程序。** 下载 `Pulsewright-Setup-1.0.2.exe` 双击。它会读出你机器上所有登记过的库列出来，选一个点「安装到这个库」就完事。列表里没有你的库，就点「浏览其他库…」自己选文件夹。
+**Windows 最省事：跑安装程序。** 下载 `Pulsewright-Setup-1.0.3.exe` 双击。它会读出你机器上所有登记过的库列出来，选一个点「安装到这个库」就完事。列表里没有你的库，就点「浏览其他库…」自己选文件夹。
 
 装完打开 Obsidian → 设置 → 第三方插件 → 关掉「安全模式 / 受限模式」→ 启用 Pulsewright。如果 Obsidian 本来就开着，`Ctrl + R` 重新加载一下。
 
 安装器没有数字签名，Windows 的 SmartScreen 大概率会拦一下，点「更多信息」→「仍要运行」就行。它只做一件事：把三个文件复制进你选的库的 `.obsidian/plugins/pulsewright/`。不写注册表，不装服务，不改系统设置。
 
-**其他系统：解压压缩包。** 下载 `pulsewright-1.0.2.zip`，解压出一个 `pulsewright` 文件夹，里面是插件本体和一份《安装说明.txt》。然后：
+**其他系统：解压压缩包。** 下载 `pulsewright-1.0.3.zip`，解压出一个 `pulsewright` 文件夹，里面是插件本体和一份《安装说明.txt》。然后：
 
 1. 找到你的库目录，就是放 `.md` 文件的那个文件夹
 2. 进 `.obsidian/plugins/`（没有 `plugins` 就自己建一个）
@@ -190,6 +206,7 @@ Copy-Item -Recurse .\pulsewright "$env:USERPROFILE\Documents\你的库\.obsidian
 - **评分权重** —— 默认 `200 / 4 / 1.5 / 1`，就是上面公式里那四个数
 - **数据目录** —— 默认 `Pulse`，CSV、JSON、复盘、速记、导出都写在这
 - **画风** —— 像素 / 水墨 / 极简 / 星图，面板头部的「换画风」按钮也能切
+- **面板材质** —— 实心 / 毛玻璃 / 亚克力。实心最稳，毛玻璃透出一点背景，亚克力更厚也更亮；浏览器不支持 `backdrop-filter` 时自动退回实心
 - **导出 JSON 时包含设置项** —— 默认关
 - **备份时包含速记正文** —— 默认关
 
@@ -243,7 +260,7 @@ CSV 的列是 `date,score,words,notes,links,revisions,focus_sec,interact_sec,qua
 
 **不读非 Markdown 文件。** 索引只走 `vault.getMarkdownFiles()`。
 
-**没有授权校验。** 不存在设备指纹、license 验签、试用期，也没有任何「联网激活后才能用」的功能。装上就是全部九个页签。
+**没有授权校验。** 不存在设备指纹、license 验签、试用期，也没有任何「联网激活后才能用」的功能。装上就是全部十一个页面。
 
 **随时可以删。** 禁用插件、删目录，库就回到干净状态。
 
@@ -287,7 +304,7 @@ CSV 带 BOM，Excel 双击就开。JSON 是完整结构，想转 Notion 自己�
 ## 想改代码的话
 
 ```bash
-npm test      # 228 项单测，跑的是纯函数和生命周期，用 fake obsidian 模块
+npm test      # 289 项单测，跑的是纯函数和生命周期，用 fake obsidian 模块
 npm run check # node --check 语法检查
 npm run build # 三个文件拷进 dist/，并校验 manifest 与 package 版本一致
 ```
@@ -311,11 +328,11 @@ CI 在 `.github/workflows/test.yml`，`ubuntu-latest` + Node 20，跑 `node --ch
 
 ## 版本与环境
 
-当前 `1.0.2`。最低 Obsidian `1.6.0`（`manifest.json` 的 `minAppVersion`）。桌面和移动端都能跑。运行时用的是 Electron 内置的 Node，你本机不需要装 Node——只有想跑测试的时候才需要，`>=18`。
+当前 `1.0.3`。最低 Obsidian `1.6.0`（`manifest.json` 的 `minAppVersion`）。桌面和移动端都能跑。运行时用的是 Electron 内置的 Node，你本机不需要装 Node——只有想跑测试的时候才需要，`>=18`。
 
-零运行时依赖，`package.json` 里没有 `dependencies` 这一节。`main.js` 约 100 KB，`styles.css` 约 21 KB。
+零运行时依赖，`package.json` 里没有 `dependencies` 这一节。`main.js` 约 177 KB，`styles.css` 约 50 KB。
 
-我在 Obsidian **1.15.0**（Electron 43 / Chromium 150）上把九个页签都过了一遍。
+我在 Obsidian **1.15.0**（Electron 43 / Chromium 150）上把十一个页面都过了一遍，截图是在 Windows、175% 缩放下拍的。
 
 界面是简体中文，代码注释也是中文，**没有 i18n 框架**——没有语言切换，也不跟随 Obsidian 的语言设置。想要英文界面得改 `main.js` 里的字符串，欢迎提 PR 做正经的 i18n。
 
@@ -341,27 +358,31 @@ I built it for my own vault after three years of notes, because I could not answ
 
 ### What is in it
 
-Nine tabs, ordered by how often I use them.
+Eleven pages, but you only ever see one at a time. The `Today ▾` control at the top left opens four columns — Now / Time / Content / Do — instead of a strip of tabs.
 
-**Board** — the landing view. Total score, active days, current and longest streak, focus time, words, new notes, wikilinks, revisions. Below that a year-long heatmap with six switchable metrics, a 30-day trend line, a weekday distribution, and a "heaviest notes" list that links straight to the note. There is also a daily "today's revisit" card that picks one note you wrote at least 50 words in and have not touched for 30+ days; the pick is stable for the day and rotates the next.
+**Today** (the default) — three numbers, each with a reference line underneath (versus yesterday, seven-day average, longest streak); a 12-week band and a seven-day bar chart with a week-over-week delta; then one card that hands you a single note to act on — an old debt written 50+ words ago and untouched for 30+ days, or failing that the most recently edited one. Two buttons: open it, or set it aside. Set-aside is remembered and reversible ("set aside N today · restore"). Below that, **echoes**: one note from around a year ago, a month ago and three years ago, first sentence only, with a link back.
 
-**Strata** — the last 52 weeks stacked as a four-layer area chart (words, new notes, wikilinks, revisions). The shape is the point: which weeks collapsed, and whether writing stopped entirely or just the linking did. Each layer is normalised before stacking, otherwise word count flattens the other three into a line.
+**Lanes** — the things you say you care about. One line each, `name | match | times per week`, drawn as a 12-week band. When a lane falls to twice its own rhythm it surfaces one card with two exits: open the note, or write a postponement into the memo file.
 
-**Moon** — one moon per day, lit in proportion to that day's output. Near-full means a productive day. You can page through last, current and next month. It is a cosmetic choice over a grid of coloured squares, but after a while you can spot "I stopped for a week in the middle of this month" at a glance.
+**Overview** — the old dashboard, no longer the landing page: five ranges, five KPIs, a year heatmap with six switchable metrics, a 30-day trend and a weekday distribution.
 
-**Year** — annual total, best day, most active month and weekday, plus a monthly bar chart.
+**Strata** — the last N weeks as a four-layer stacked area chart (words, new notes, wikilinks, revisions). Each layer is normalised before stacking, otherwise word count flattens the other three. The window shrinks automatically when the vault is younger than a year.
 
-**Review** — this week against last week, four metrics side by side with their deltas. One button generates a Markdown weekly report you can copy or write back into the vault.
+**Moon** — one moon per day, lit in proportion to that day's output.
 
-**Map** — tag cloud, folder breakdown, orphan notes (nothing links to them), broken links (pointing at headings that do not exist), and stale notes (threshold configurable). Search by title or path. The whole map exports as Markdown into the vault.
+**Year** — annual total, best day, most active month and weekday, monthly bars, a one-line summary, and a "library record" block: first day written, average words per active day, note count, longest note. One button exports a Markdown annual report containing numbers only.
 
-**Insight** — this one answers "how do I write" rather than "how much". A 7×24 hour-of-week grid shows whether you are a night owl or a morning person; notes get an A/B/C/D health grade; near-duplicate titles and tag co-occurrence are listed too.
+**Review** — this week against last week, four metrics with deltas, plus a one-click Markdown weekly report.
 
-**Memo** — a scratch pad. Type a line, press Enter, it appends to `Pulse/memos.md`. Search, edit in place, delete, export.
+**Map** — tag cloud, folder breakdown, orphan notes, broken links, stale notes, search by title or path, and a Markdown export of the whole map.
 
-**Data** — how many notes are indexed, how many days have records, the current formula, CSV / JSON / full-backup export, index rebuild, and the share card.
+**Insight** — hour-of-week grid, A/B/C/D health grades, near-duplicate titles, tag co-occurrence. The near-duplicate pass was rebuilt in 1.0.3 (3.5× faster, 67 ms → 19 ms on 214 notes) and its result is cached until the vault changes.
 
-Five time ranges: 7 days, 30 days, 90 days, one year, all time. Six heatmap metrics: score, new words, new notes, wikilinks, revisions, deep focus.
+**Memo** — a scratch pad appended to `Pulse/速记.md`, searchable and editable in place.
+
+**Data** — indexed notes, days with records, last scan cost, the lifetime score (the only place it is shown now), the formula, CSV / JSON / backup export, index rebuild, and the share card.
+
+Three appearance controls: **scene** (pixel / ink / minimal / star), **material** (solid / frosted / acrylic, falling back to solid where `backdrop-filter` is unavailable), and a **per-page accent colour** that carries through the nav, section dots, bars, today's cell and the primary button.
 
 ### Share card
 
@@ -394,7 +415,7 @@ Then enable **Pulsewright** in Settings → Community plugins. Requires Obsidian
 
 ### Settings
 
-Thirteen options, all in the plugin's own settings tab: data folder, live tracking, session gap, daily score cap, words per note cap, history retention, stale threshold, the four scoring weights, frontmatter fields to exclude, excluded folders, and whether exports include settings or memos.
+Fourteen options, all in the plugin's own settings tab: the lanes you care about, scene, material, data folder, live tracking, session gap, daily score cap, words per note cap, history retention, stale threshold, the four scoring weights, frontmatter fields to exclude, excluded folders, and whether exports include settings or memos.
 
 ### Privacy
 
@@ -412,7 +433,7 @@ Measured time needs the plugin running, so edits made while Obsidian is closed c
 ### Development
 
 ```bash
-npm test       # 228 unit tests against a fake obsidian module
+npm test       # 289 unit tests against a fake obsidian module
 npm run check  # node --check main.js
 npm run build  # copy the three release files into dist/ and verify the version
 ```

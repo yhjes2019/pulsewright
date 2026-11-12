@@ -1857,3 +1857,389 @@
   font-size: 10.5px;
   color: var(--text-faint);
 }
+
+
+/* 今天页卡片底部：今天放下几篇 · 恢复 */
+.kp-today-undo {
+  margin-top: 12px;
+}
+
+.kp-today-undo-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.kp-today-undo-btn:hover {
+  color: var(--text-muted);
+}
+
+/* ---------- 光影：一个光源，三层深度 ----------
+   安装器那边换 WPF 之后有了真阴影和真光晕，面板这边靠 CSS 补同样的观感：
+   ① 每张卡片有「环境光 + 主光 + 顶边高光」三层，不再是一条均匀的描边；
+   ② 光从左上来，所以左上角亮、右下角压暗；
+   ③ 有数值、有占位的东西（数字、柱、命中格、当前菜单项）自发光，其余保持安静。 */
+
+.kp-card,
+.kp-today-card,
+.kp-lane-ask,
+.kp-echo-card,
+.kp-kpi {
+  position: relative;
+  background-image:
+    radial-gradient(130% 100% at 6% -30%, rgba(255, 255, 255, 0.055), transparent 58%),
+    radial-gradient(90% 80% at 100% 120%, rgba(0, 0, 0, 0.28), transparent 60%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.30),
+    0 1px 2px rgba(0, 0, 0, 0.22),
+    0 12px 28px -14px rgba(0, 0, 0, 0.70);
+}
+
+/* 数值自发光：只给最大的那几个，多了就糊。 */
+.kp-fact b,
+.kp-op-num b,
+.kp-kpi b,
+.kp-lib-item b {
+  text-shadow:
+    0 0 2px color-mix(in srgb, var(--interactive-accent) 55%, transparent),
+    0 0 16px color-mix(in srgb, var(--interactive-accent) 62%, transparent),
+    0 0 34px color-mix(in srgb, var(--interactive-accent) 30%, transparent);
+}
+
+/* 七根柱：顶亮底暗，有体积；今天那根带光晕。 */
+.kp-wk-col i {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--interactive-accent) 92%, white 8%),
+    color-mix(in srgb, var(--interactive-accent) 78%, black 22%));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.kp-wk-col.is-today i {
+  background: linear-gradient(180deg, #6fe3da, #3aa8a1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.40),
+    0 0 16px -2px rgba(78, 205, 196, 0.65);
+}
+
+/* 时间带上「今天」那一格点一颗灯，其余只留明暗，不给 84 格都加阴影。 */
+.kp-bd-cell.is-on {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.kp-bd-cell.is-now {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 0 10px rgba(78, 205, 196, 0.55);
+}
+
+/* 惦记的时间带：命中的日子是一根亮针，带一点点辉光。 */
+.kp-lane-cell.is-hit {
+  box-shadow: 0 0 6px -1px color-mix(in srgb, var(--interactive-accent) 60%, transparent);
+}
+
+/* 菜单：当前项左侧一道 2px 光条 + 内部微光，而不是整块灰底。 */
+.kp-menu-item.is-active {
+  background-image:
+    linear-gradient(90deg, color-mix(in srgb, var(--interactive-accent) 16%, transparent), transparent 70%);
+  box-shadow:
+    inset 2px 0 0 var(--interactive-accent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* 进度条：底槽内凹、填充部分上亮下暗，看起来是嵌进去的。 */
+.kp-bar-track {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.kp-bar-fill,
+.kp-bd-track {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* 按钮：默认那层不加光，主按钮才有，避免满屏发光。 */
+.kp-btn-p {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 2px 10px -4px color-mix(in srgb, var(--interactive-accent) 55%, transparent);
+}
+
+.kp-btn-p:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 4px 16px -4px color-mix(in srgb, var(--interactive-accent) 72%, transparent);
+}
+
+/* ============================================================
+ * 配色与层次
+ * 之前只有一个紫，所有东西都靠它，看着就平。
+ * 这里给每一页一个主色（--kp-page），并把它用在：页签下划线、
+ * 小标题前的点、数字光晕、柱状图、当天格子。其余颜色按语义分：
+ * 青=正常、琥珀=该注意、珊瑚=断了。
+ * ============================================================ */
+
+.kp-shell {
+  --kp-page-1: #7c9cff;
+  --kp-page-2: #4ecdc4;
+  --kp-page-3: #a78bfa;
+  --kp-page-4: #f0b75b;
+  --kp-page: var(--kp-page-1);
+
+  --kp-surface: #12161f;
+  --kp-surface-2: #0d1118;
+  --kp-line: rgba(255, 255, 255, 0.075);
+  --kp-line-soft: rgba(255, 255, 255, 0.045);
+  --kp-ok: #4ecdc4;
+  --kp-warn: #f0b75b;
+  --kp-bad: #f2755e;
+}
+
+.kp-scene-ink {
+  --kp-page-1: #c8a27a;
+  --kp-page-2: #9aa892;
+  --kp-page-3: #d8b48c;
+  --kp-page-4: #b08868;
+  --kp-surface: #191713;
+  --kp-surface-2: #121110;
+}
+
+.kp-scene-mono {
+  --kp-page-1: #cfd3da;
+  --kp-page-2: #a7acb5;
+  --kp-page-3: #e6e8ec;
+  --kp-page-4: #8e939b;
+  --kp-surface: #16171b;
+  --kp-surface-2: #101114;
+}
+
+.kp-scene-star {
+  --kp-page-1: #a78bfa;
+  --kp-page-2: #5eead4;
+  --kp-page-3: #f472b6;
+  --kp-page-4: #fbbf24;
+  --kp-surface: #131320;
+  --kp-surface-2: #0c0c15;
+}
+
+/* 每页一个主色 */
+.kp-shell[data-tab="today"] { --kp-page: var(--kp-page-2); }
+.kp-shell[data-tab="lanes"] { --kp-page: var(--kp-page-1); }
+.kp-shell[data-tab="board"],
+.kp-shell[data-tab="strata"],
+.kp-shell[data-tab="moon"],
+.kp-shell[data-tab="year"] { --kp-page: var(--kp-page-1); }
+.kp-shell[data-tab="review"],
+.kp-shell[data-tab="map"],
+.kp-shell[data-tab="insight"] { --kp-page: var(--kp-page-3); }
+.kp-shell[data-tab="memo"],
+.kp-shell[data-tab="data"] { --kp-page: var(--kp-page-4); }
+
+/* ---------- 层次：底 → 面 → 内嵌 ---------- */
+
+.kp-card,
+.kp-today-card,
+.kp-lane-ask,
+.kp-echo-card,
+.kp-kpi,
+.kp-lib,
+.kp-review {
+  background-color: var(--kp-surface);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0) 42%);
+  border: 1px solid var(--kp-line);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 14px 30px -18px rgba(0, 0, 0, 0.85);
+}
+
+.kp-lane-track,
+.kp-bar-track,
+.kp-bd-track,
+.kp-echo-card .kp-echo-lead,
+.kp-today-quote {
+  background-color: var(--kp-surface-2);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- 小标题前一个主色点 ---------- */
+
+.kp-card > h3,
+.kp-today-card > h3,
+.kp-sec-head h3,
+.kp-echo > h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kp-card > h3::before,
+.kp-today-card > h3::before,
+.kp-sec-head h3::before,
+.kp-echo > h3::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: var(--kp-page);
+  box-shadow: 0 0 10px -1px var(--kp-page);
+}
+
+/* ---------- 页签下划线跟主色 ---------- */
+
+.kp-switch-now,
+.kp-switch.is-open .kp-switch-now {
+  color: var(--kp-page);
+}
+
+.kp-switch {
+  border-color: color-mix(in srgb, var(--kp-page) 34%, var(--kp-line));
+}
+
+.kp-switch::after {
+  background: linear-gradient(90deg, transparent, var(--kp-page), transparent);
+  opacity: 0.5;
+}
+
+/* ---------- 数字：白字 + 主色柔光（不要近场，否则字会被染色） ---------- */
+
+.kp-fact b,
+.kp-op-num b,
+.kp-kpi b,
+.kp-lib-item b {
+  color: var(--text-normal, #e8ecf6);
+  text-shadow: 0 0 26px color-mix(in srgb, var(--kp-page) 42%, transparent);
+}
+
+/* ---------- 柱状与热力：跟主色 ---------- */
+
+.kp-wk-col i {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--kp-page) 62%, white) 0%,
+    color-mix(in srgb, var(--kp-page) 88%, black) 100%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.kp-wk-col.is-today i {
+  background: linear-gradient(180deg, #8ff0e7 0%, #2f9d95 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 0 18px -2px color-mix(in srgb, var(--kp-page-2) 72%, transparent);
+}
+
+.kp-bd-cell.is-on {
+  background: color-mix(in srgb, var(--kp-page) 78%, transparent);
+}
+
+.kp-bd-cell.is-now {
+  background: var(--kp-page-2);
+  box-shadow: 0 0 12px -1px var(--kp-page-2);
+}
+
+.kp-lane-cell.is-hit {
+  background: var(--kp-page);
+  box-shadow: 0 0 7px -1px var(--kp-page);
+}
+
+/* ---------- 状态色按语义走 ---------- */
+
+.kp-lane-st.is-ok { color: var(--kp-ok); }
+.kp-lane-st.is-warn { color: var(--kp-warn); }
+.kp-wk-recap.is-up { color: var(--kp-ok); }
+.kp-wk-recap.is-down { color: var(--kp-warn); }
+
+.kp-lane-ask {
+  border-color: color-mix(in srgb, var(--kp-warn) 26%, var(--kp-line));
+}
+
+.kp-lane-ask h3::before {
+  background: var(--kp-warn);
+  box-shadow: 0 0 10px -1px var(--kp-warn);
+}
+
+/* ---------- 菜单：悬停给一层很淡的底，当前项左侧一条光 ---------- */
+
+.kp-menu-item:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.kp-menu-item.is-active {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--kp-page) 22%, transparent),
+    transparent 72%
+  );
+  box-shadow: inset 2px 0 0 var(--kp-page), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: var(--kp-page);
+}
+
+/* ---------- 主按钮 ---------- */
+
+.kp-btn-p {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--kp-page) 30%, transparent),
+    color-mix(in srgb, var(--kp-page) 14%, transparent)
+  );
+  border-color: color-mix(in srgb, var(--kp-page) 58%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 0 16px -4px color-mix(in srgb, var(--kp-page) 70%, transparent);
+}
+
+.kp-btn-p:hover {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--kp-page) 42%, transparent),
+    color-mix(in srgb, var(--kp-page) 22%, transparent)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 0 22px -3px color-mix(in srgb, var(--kp-page) 82%, transparent);
+}
+
+/* ---------- 第二层：把形状也分出层次，别让所有卡片长一个样 ---------- */
+
+/* 概览里的 KPI 不再用大光晕，否则小字号的分数会被染成紫色 */
+.kp-kpi b {
+  text-shadow: 0 0 18px color-mix(in srgb, var(--kp-page) 26%, transparent);
+}
+
+/* 每张 KPI 顶上一条主色细线，像仪表的刻度尺 */
+.kp-kpi {
+  border-top: 1px solid color-mix(in srgb, var(--kp-page) 30%, transparent);
+}
+
+/* 头部底下压一条主色渐变线，代替原来的纯分隔 */
+.kp-head {
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--kp-page) 26%, transparent);
+}
+
+/* 卡片标题下面那条短横线（如果有）也跟主色 */
+.kp-sec-head {
+  border-bottom: 1px solid var(--kp-line-soft);
+  padding-bottom: 10px;
+}
+
+/* 内嵌的搜索框、速记输入框：比卡片再暗一层，才看得出是「嵌进去的」 */
+.kp-search,
+.kp-memo-input,
+.kp-lane-edit {
+  background: var(--kp-surface-2);
+  border: 1px solid var(--kp-line);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* 排行条的底槽 */
+.kp-lib-bar,
+.kp-tag-bar {
+  background: var(--kp-surface-2);
+}
