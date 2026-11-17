@@ -14,6 +14,8 @@
 
 **中文** ｜ [English](#english)
 
+**国内镜像：[Gitee](https://gitee.com/yhjes2019/pulsewright)** —— 代码、安装包、Zotero 的自动更新都同步在那儿。GitHub 这边照常更新。
+
 ---
 
 ## 为什么会有这个东西
@@ -142,6 +144,8 @@ Zotero **7.0 – 10.x** 可装。装好以后选中一条文献，从工具菜�
 **它不联网。** 直接调 Zotero 自己的条目接口，不开端口、不发 HTTP。
 
 **材质**：毛玻璃或亚克力，面板右上角切换，只影响观感。
+
+**装完以后自动更新走 Gitee。** 插件的 `update_url` 指向 `gitee.com/yhjes2019/pulsewright/raw/main/zotero/updates.json`，检查更新时不依赖 GitHub 通不通。
 
 ## 装
 
