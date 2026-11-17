@@ -2243,3 +2243,43 @@
 .kp-tag-bar {
   background: var(--kp-surface-2);
 }
+
+/* --- 面板材质：三个明确选项，当前一档高亮 --- */
+.kp-mats {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--background-modifier-hover, rgba(128, 128, 128, 0.12));
+}
+.kp-mats-label {
+  font-size: 11px;
+  opacity: 0.6;
+  padding: 0 4px 0 6px;
+}
+.kp-mat-pill {
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1.6;
+  padding: 2px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.62;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+.kp-mat-pill:hover {
+  opacity: 1;
+  background: rgba(124, 156, 255, 0.16);
+}
+.kp-mat-pill.is-on {
+  opacity: 1;
+  font-weight: 600;
+  background: rgba(124, 156, 255, 0.3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .kp-mat-pill { transition: none; }
+}

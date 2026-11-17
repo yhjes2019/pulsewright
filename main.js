@@ -40,7 +40,7 @@ const DEFAULT_SETTINGS = {
   /* 「惦记」里逐行配置的几条线：名称 | 匹配 | 每周几次。 */
   lanesText: '',
   /* 面板材质：solid 实心 / frosted 毛玻璃 / acrylic 亚克力。 */
-  materialStyle: 'solid',
+  materialStyle: 'frosted',
   exportIncludeSettings: false,
   includeMemosInBackup: false,
   settingsVersion: SETTINGS_VERSION
@@ -1969,6 +1969,9 @@ class PulseView extends ItemView {
     /* 搜索框输入用 rAF 合并重绘，避免逐键重建正文。 */
     this._memoRaf = 0;
     this._mapRaf = 0;
+    /* 每个视图记住自己滚到哪儿：切回来还在原处，切过去也不会带着上一页的位移。 */
+    this._scrollMemo = {};
+    this._shownTab = null;
   }
 
   /* 把当前视图状态写回 data.json，下次打开还是这一页。 */
@@ -2043,11 +2046,19 @@ class PulseView extends ItemView {
         else b.classList.remove('is-active');
       });
     }
-    const keepTop = body.scrollTop || 0;
+    const prevTab = this._shownTab;
+    if (!this._scrollMemo) this._scrollMemo = {};
+    if (prevTab && prevTab !== this.tab) {
+      this._scrollMemo[prevTab] = body.scrollTop || 0;
+    }
+    /* 换页签时用目标视图自己存下的位置；同一页重绘（改速记、搜索）才沿用当前位移。 */
+    const memo = this._scrollMemo || {};
+    const restoreTop = (prevTab && prevTab !== this.tab) ? (memo[this.tab] || 0) : (body.scrollTop || 0);
     this._skipIn = true;
     this.renderTab(body);
     this._skipIn = false;
-    if (keepTop) body.scrollTop = keepTop;
+    body.scrollTop = restoreTop;
+    this._shownTab = this.tab;
     this._lastSig = this.signature();
   }
 
@@ -2070,7 +2081,16 @@ class PulseView extends ItemView {
     el.empty();
     el.addClass('kp-root');
     const scene = (this.plugin.settings.sceneStyle || 'pixel');
-    const mat = (this.plugin.settings.materialStyle || 'solid');
+    const savedMat = this.plugin.settings.materialStyle;
+    const mat = (savedMat === 'acrylic' || savedMat === 'frosted') ? savedMat : 'frosted';
+    const matNames = { frosted: '毛玻璃', acrylic: '亚克力' };
+    const sceneNames = { pixel: '像素', ink: '水墨', mono: '单色', star: '星空' };
+    // 实心已撤掉：半透明面板才是这个插件的样子。
+    const matList = ['frosted', 'acrylic'];
+    const matHtml = matList.map(function (k) {
+      return '<button class="kp-mat-pill' + (k === mat ? ' is-on' : '') + '" data-mat="' + k + '"'
+        + ' title="面板材质：' + matNames[k] + '">' + matNames[k] + '</button>';
+    }).join('');
     const shell = el.createDiv({ cls: 'kp-shell kp-scene-' + scene + ' kp-mat-' + mat });
 
     /* 首屏才播入场动画：切页签、刷新数据都不重播，避免每次操作都闪一下。 */
@@ -2097,7 +2117,11 @@ class PulseView extends ItemView {
       + '    <div><h2>Pulsewright<span class="kp-brand-cn">知识脉冲</span></h2>'
       + '  <p class="kp-brand-slogan">你的知识，有自己的脉搏。</p></div></div>'
       + '  <div class="kp-head-actions">'
-      + '    <button class="kp-btn" data-act="scene" title="换画风">换画风</button>'
+      + '    <div class="kp-mats" title="面板材质">'
+      + '      <span class="kp-mats-label">材质</span>' + matHtml
+      + '    </div>'
+      + '    <button class="kp-btn" data-act="scene" title="切换画风：像素 / 水墨 / 单色 / 星空">画风：'
+      + (sceneNames[scene] || scene) + '</button>'
       + '    <button class="kp-btn" data-act="rescan" title="重新扫描">刷新</button>'
       + '  </div>'
       + '</header>'
@@ -2109,7 +2133,11 @@ class PulseView extends ItemView {
       + '<main class="kp-body"></main>';
 
     this.bindShell(shell);
-    this.renderTab(shell.querySelector('.kp-body'));
+    const shellBody = shell.querySelector('.kp-body');
+    this.renderTab(shellBody);
+    /* 整壳重建（换画风、换材质）也回到这个视图上次停留的位置。 */
+    if (shellBody) shellBody.scrollTop = (this._scrollMemo && this._scrollMemo[this.tab]) || 0;
+    this._shownTab = this.tab;
 
     this._lastSig = this.signature();
     if (boot) this.playBoot();
@@ -2181,6 +2209,14 @@ class PulseView extends ItemView {
     });
     const sceneBtn = shell.querySelector('[data-act="scene"]');
     if (sceneBtn) sceneBtn.addEventListener('click', function () { self.plugin.cycleScene(); self.render(); });
+    shell.querySelectorAll('[data-mat]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        const key = b.getAttribute('data-mat');
+        if (!key || key === self.plugin.settings.materialStyle) return;
+        self.plugin.settings.materialStyle = key;
+        Promise.resolve(self.plugin.saveSettings()).then(function () { self.render(); });
+      });
+    });
     const rescanBtn = shell.querySelector('[data-act="rescan"]');
     if (rescanBtn) rescanBtn.addEventListener('click', async function () {
       rescanBtn.textContent = '扫描中…';
@@ -3745,12 +3781,11 @@ class PulseSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('面板材质')
-      .setDesc('卡片和菜单的表面质感。实心最稳，毛玻璃透出一点背景，亚克力更厚也更亮。')
+      .setDesc('卡片和菜单的表面质感。毛玻璃透出一点背景，亚克力更厚也更亮。')
       .addDropdown(function (dd) {
-        dd.addOption('solid', '实心（默认）');
-        dd.addOption('frosted', '毛玻璃');
+        dd.addOption('frosted', '毛玻璃（默认）');
         dd.addOption('acrylic', '亚克力');
-        dd.setValue(this.plugin.settings.materialStyle || 'solid');
+        dd.setValue(this.plugin.settings.materialStyle === 'acrylic' ? 'acrylic' : 'frosted');
         dd.onChange(async function (v) {
           this.plugin.settings.materialStyle = v;
           await this.plugin.saveSettings();
@@ -4040,7 +4075,13 @@ class PulsewrightPlugin extends Plugin {
         self.data.lastScan = Date.now();
         self.data.lastScanMs = self.data.lastScan - startedAt;
         self.data.lastScanRead = readCount;
-        await self.persist();
+        /* 十五分钟一次的定时扫描绝大多数时候什么都没变，而索引本身可能有好几 MB。
+         * 一个文件都没重读、设置也没动，算出来的结果就和上一次逐位相同，
+         * 这时再写一遍盘纯属自找磁盘 IO。 */
+        const scanSig = JSON.stringify(self.settings);
+        const quietScan = readCount === 0 && !force && self._lastScanSig === scanSig;
+        self._lastScanSig = scanSig;
+        if (!quietScan) await self.persist();
         self.refreshViews();
         self.updateStatus();
         return { notes: notes.length, read: readCount, ms: self.data.lastScanMs, pruned: Object.keys(built.daily).length - Object.keys(kept).length };

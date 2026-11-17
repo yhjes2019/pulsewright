@@ -1,0 +1,20 @@
+{
+  "manifest_version": 2,
+  "name": "Pulsewright",
+  "version": "1.1.0",
+  "description": "Six questions that turn a paper you saved into a paper you understood. Fully local, zero network, read-only.",
+  "author": "Luo",
+  "homepage_url": "https://github.com/yhjes2019/pulsewright",
+  "icons": {
+    "48": "content/icons/icon48.png",
+    "96": "content/icons/icon96.png"
+  },
+  "applications": {
+    "zotero": {
+      "id": "pulsewright@luo.dev",
+      "update_url": "https://raw.githubusercontent.com/yhjes2019/pulsewright/main/zotero/updates.json",
+      "strict_min_version": "7.0",
+      "strict_max_version": "10.*"
+    }
+  }
+}
