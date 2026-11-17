@@ -3,6 +3,9 @@ contact_links:
   - name: 用法问题 / 装不上 / 分数不对
     url: https://github.com/yhjes2019/pulsewright#faq
     about: 先看 README 的 FAQ 与「已知限制」，多数问题那里有答案
+  - name: Zotero 端怎么装、六问怎么用
+    url: https://github.com/yhjes2019/pulsewright/wiki/Zotero-六问
+    about: 七段分别问什么、答案存在哪、怎么一篇篇翻
   - name: 安全漏洞（请勿公开提 Issue）
     url: https://github.com/yhjes2019/pulsewright/security/advisories/new
     about: 走 GitHub 私密安全报告渠道，见 SECURITY.md

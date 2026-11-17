@@ -10,6 +10,7 @@
 [![version](https://img.shields.io/badge/version-1.1.0-green.svg)](https://github.com/yhjes2019/pulsewright/releases)
 [![min obsidian](https://img.shields.io/badge/Obsidian-%E2%89%A5%201.6.0-7c3aed.svg)](https://obsidian.md)
 [![tests](https://img.shields.io/badge/tests-289%20passing-brightgreen.svg)](tests/kp_test.js)
+[![zotero tests](https://img.shields.io/badge/zotero%20tests-93%20passing-brightgreen.svg)](zotero/tests/core.test.js)
 
 **中文** ｜ [English](#english)
 
@@ -119,6 +120,28 @@ Obsidian 自带的反向链接和图谱解决不了这些。市面上的同类�
 没有一条笔记的标题，也没有一句正文。分享出去的是你的节奏，不是你的内容——这点我特意这么设计的，否则这功能我不敢做。
 
 PNG 是拿 canvas 现转的，不用装任何东西。万一某个环境里拿不到 canvas，SVG 会留下来并提示你一句。
+
+## Zotero 端
+
+**同一个问题，换了个地方问。** 在 Obsidian 里是「我在意的事断没断」，在 Zotero 里是「这篇我存下来的文献，我到底读懂了没有」。
+
+Zotero **7.0 – 10.x** 可装。装好以后选中一条文献，从工具菜单、条目右键、条目工具栏的脉搏图标，或者按 `Ctrl + Shift + 6`，打开的都是同一个面板。七段，一段只问一件事：
+
+1. **这本文献讲了什么** —— 类型、期刊、年份、摘要。
+2. **我为什么选它** —— 你说一句。旁边的提示只给库里的事实：什么时候加的、在哪个分类、什么标签、有没有 PDF、库里几篇跟它相近。
+3. **库里有相关的吗** —— 按词面相似度排序，给百分比，点一条跳过去。
+4. **有没有更优解** —— 拿最像的那篇做对照：年份、类型、来源、有没有摘要。
+5. **读完还有哪些问题** —— 写下来，存进子笔记。
+6. **下一本该读什么** —— 从库里挑三篇，标出「同类型」「更新」。
+7. **你的阅读痕迹** —— 批注数、附件、最近改动。
+
+右上角有「‹ 上一篇 / 下一篇 ›」，按文献列表当前排序走，可以一篇篇读下去。
+
+**答案存在哪：** 这条文献自己的子笔记，开头一个 `<!-- pulsewright-six -->` 标记。不另建库、不另存一份，跟着 Zotero 同步走。
+
+**它不联网。** 直接调 Zotero 自己的条目接口，不开端口、不发 HTTP。
+
+**材质**：毛玻璃或亚克力，面板右上角切换，只影响观感。
 
 ## 装
 
@@ -245,6 +268,7 @@ Copy-Item -Recurse .\pulsewright "$env:USERPROFILE\Documents\你的库\.obsidian
 | `<数据目录>/导出/Pulsewright-分享-<YYYYMMDD>.svg` | 分享卡矢量版，PNG 转失败时留这个 |
 | `<数据目录>/导出/Pulsewright-分享文案-<YYYYMMDD>.txt` | 剪贴板不可用时的降级落盘 |
 | `<数据目录>/速记.md` | 速记追加文件，自动建，带 `id/name/type/created` frontmatter |
+| 文献子笔记（在你的 Zotero 库里） | 六问的答案，开头带 `<!-- pulsewright-six -->` 标记 |
 
 CSV 的列是 `date,score,words,notes,links,revisions,focus_sec,interact_sec,quality`。
 
@@ -263,6 +287,8 @@ CSV 的列是 `date,score,words,notes,links,revisions,focus_sec,interact_sec,qua
 **不读非 Markdown 文件。** 索引只走 `vault.getMarkdownFiles()`。
 
 **没有授权校验。** 不存在设备指纹、license 验签、试用期，也没有任何「联网激活后才能用」的功能。装上就是全部十一个页面。
+
+**Zotero 端同样不联网。** 它只调 `Zotero.Items` / `Zotero.Collections` 这些进程内的接口，不起本地 http 服务、不连任何外部地址；六问的答案写进文献子笔记，直接进你自己的 Zotero 库。
 
 **随时可以删。** 禁用插件、删目录，库就回到干净状态。
 
@@ -334,6 +360,8 @@ CI 在 `.github/workflows/test.yml`，`ubuntu-latest` + Node 20，跑 `node --ch
 
 零运行时依赖，`package.json` 里没有 `dependencies` 这一节。`main.js` 约 177 KB，`styles.css` 约 50 KB。
 
+Zotero 端支持 **7.0 – 10.x**，没有官方插件目录，只能手动装 `.xpi`；六问面板在 Zotero **10.0.8** 上实测过。
+
 我在 Obsidian **1.15.0**（Electron 43 / Chromium 150）上把十一个页面都过了一遍，截图是在 Windows、175% 缩放下拍的。
 
 界面是简体中文，代码注释也是中文，**没有 i18n 框架**——没有语言切换，也不跟随 Obsidian 的语言设置。想要英文界面得改 `main.js` 里的字符串，欢迎提 PR 做正经的 i18n。
@@ -399,6 +427,16 @@ score = words / 200 + new_notes × 4 + wikilinks × 1.5 + revisions × 1     (da
 Words count CJK characters individually and Latin tokens by word, capped at 4000 per note. New notes use the `created` frontmatter field, falling back to `date` and then to file ctime, so imported notes land on the right day. Weights are editable in settings (defaults live in `WEIGHTS`), and changing them recomputes the whole vault immediately, so the formula stays auditable.
 
 Focus time comes from two sources, labelled in the day-detail modal: **measured** (edits merged into sessions by a configurable gap) and **estimated** (`words × 0.6s`, capped at 6 hours). The exported `quality` column carries `measured` / `estimated`.
+
+### Zotero
+
+Version 1.1.0 adds a second host: the same core, asked a different question. In Obsidian the question is "has anything I care about gone quiet"; in Zotero it is "I saved this paper months ago — did I actually read it".
+
+Install `pulsewright-1.1.0.xpi` through Tools → Plugins → gear → Install Plugin From File. Then select an item and open the panel from the Tools menu, the item context menu, the toolbar pulse icon, or `Ctrl+Shift+6`.
+
+The panel asks seven things: what this paper says, why I picked it, what in my library is related, is there something better, what questions remain, what to read next, and what my reading trail looks like. Answers are written into that item's own child note (marked `<!-- pulsewright-six -->`), so they travel with your Zotero library instead of living in a second database. `‹ previous / next ›` walks the current item list, so a sorted list becomes a reading route.
+
+It calls Zotero's in-process item API only — no local HTTP server, no outbound requests.
 
 ### Install
 

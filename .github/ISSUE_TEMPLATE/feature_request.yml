@@ -8,6 +8,18 @@ body:
       value: |
         提之前先看一眼 [已知限制](https://github.com/yhjes2019/pulsewright#已知限制) 和 [CHANGELOG](https://github.com/yhjes2019/pulsewright/blob/main/CHANGELOG.md)，可能已经在计划里或有意不做。
 
+  - type: dropdown
+    id: host
+    attributes:
+      label: 哪一端
+      description: Obsidian 插件和 Zotero 插件是两套界面、各自安装，先确认问题出在哪一端
+      options:
+        - Obsidian 插件
+        - Zotero 插件（六问）
+        - 两端都有
+    validations:
+      required: true
+
   - type: textarea
     id: problem
     attributes:

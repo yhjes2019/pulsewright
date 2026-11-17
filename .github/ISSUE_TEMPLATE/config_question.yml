@@ -16,11 +16,23 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: host
+    attributes:
+      label: 哪一端
+      description: Obsidian 插件和 Zotero 插件是两套界面、各自安装，先确认问题出在哪一端
+      options:
+        - Obsidian 插件
+        - Zotero 插件（六问）
+        - 两端都有
+    validations:
+      required: true
+
   - type: input
     id: plugin-version
     attributes:
       label: 插件版本
-      placeholder: "1.0.0"
+      placeholder: "1.1.0"
 
   - type: input
     id: obsidian-version

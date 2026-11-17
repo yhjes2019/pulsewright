@@ -8,12 +8,24 @@ body:
       value: |
         感谢反馈。提之前请先确认：把 `main.js` / `manifest.json` / `styles.css` 拷进 `.obsidian/plugins/pulsewright/` 后**重载过插件**，并且问题在新建的空库里也能复现（很多「分数不对」是库里有排除目录或 frontmatter `created` 写错）。
 
+  - type: dropdown
+    id: host
+    attributes:
+      label: 哪一端
+      description: Obsidian 插件和 Zotero 插件是两套界面、各自安装，先确认问题出在哪一端
+      options:
+        - Obsidian 插件
+        - Zotero 插件（六问）
+        - 两端都有
+    validations:
+      required: true
+
   - type: input
     id: plugin-version
     attributes:
       label: 插件版本
       description: 设置 → 第三方插件 → Pulsewright 那一行显示的版本号
-      placeholder: "1.0.0"
+      placeholder: "1.1.0"
     validations:
       required: true
 
