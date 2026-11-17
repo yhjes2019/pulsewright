@@ -6,13 +6,15 @@
 
 ## 装 `.xpi`
 
-1. 从 [Releases](https://github.com/yhjes2019/pulsewright/releases) 或仓库 `zotero/` 目录拿到 `pulsewright-<版本>.xpi`
+1. 从 [Releases](https://gitee.com/yhjes2019/pulsewright/releases) 或仓库 `zotero/` 目录拿到 `pulsewright-<版本>.xpi`
 2. 打开 Zotero → 工具 → 插件
 3. 点右上齿轮 → **Install Plugin From File…**
 4. 选那个 `.xpi`
 5. 重启 Zotero
 
 装好后工具菜单里会多一项「六问」，工具栏会多一个脉搏图标。
+
+> 以后检查更新走 Gitee（`gitee.com/yhjes2019/pulsewright/raw/main/zotero/updates.json`），不要求能连上 GitHub。同样的安装包在 [GitHub Releases](https://github.com/yhjes2019/pulsewright/releases) 也有一份。
 
 ## 四个入口
 
