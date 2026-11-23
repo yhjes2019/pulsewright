@@ -7,9 +7,9 @@
 <br clear="left" />
 
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![version](https://img.shields.io/badge/version-1.1.0-green.svg)](https://github.com/yhjes2019/pulsewright/releases)
+[![version](https://img.shields.io/badge/version-1.1.5-green.svg)](https://github.com/yhjes2019/pulsewright/releases)
 [![min obsidian](https://img.shields.io/badge/Obsidian-%E2%89%A5%201.6.0-7c3aed.svg)](https://obsidian.md)
-[![tests](https://img.shields.io/badge/tests-289%20passing-brightgreen.svg)](tests/kp_test.js)
+[![tests](https://img.shields.io/badge/tests-321%20passing-brightgreen.svg)](tests/kp_test.js)
 [![zotero tests](https://img.shields.io/badge/zotero%20tests-93%20passing-brightgreen.svg)](zotero/tests/core.test.js)
 
 **中文** ｜ [English](#english)
@@ -25,6 +25,8 @@
 Obsidian 自带的反向链接和图谱解决不了这些。市面上的同类面板我也试过，多数要么要注册账号，要么得联网校验一下，要么不开源——我不太想把整个笔记库的统计交给一个看不见内部的东西。
 
 所以就有了这个。它的目标很窄：把库里的 Markdown 读一遍，算出一堆关于你的数字，画出来，然后闭嘴。
+
+**1.1.5 只修一件事：第一次打开。**之前装完看到一屏 0 加一句「还没有索引到笔记」，那是实话但没有用，多数人看完就关了。现在空库先给一张三步卡（写点什么 / 回来看一眼 / 攒够几天），旁边一个「先看看示例数据」，用九十天假数据把页面点亮——只活在内存里，不写 `data.json`，不进分享卡，待在示例里时连库都不扫。另外「今天」页和数据页各能一键导出这一周的图，1080×1440，只含统计不含笔记标题。
 
 **1.1.0 多了一个 Zotero 端。**同一个问题换了个地方问：在 Obsidian 里是「我在意的事断没断」，在 Zotero 里是「这篇存下来的文献，我到底读懂了没有」。六问做成一个弹窗，按 1→7 走一遍就是一次精读，可以按列表顺序一篇篇翻过去。两端共用同一套算法和同一份发布节奏，各装各的，都不联网。详细清单在 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -171,13 +173,13 @@ Zotero **7.0 – 10.x** 可装。装好以后选中一条文献，从工具菜�
 
 **Zotero 端另发。**下 `pulsewright-1.1.0.xpi`，Zotero 里「工具 → 插件 → 齿轮 → 从文件安装」，选它。装完选中文献按 `Ctrl + Shift + 6`。
 
-**Windows 最省事：跑安装程序。** 下载 `Pulsewright-Setup-1.1.0.exe` 双击。它会读出你机器上所有登记过的库列出来，选一个点「安装到这个库」就完事。列表里没有你的库，就点「浏览其他库…」自己选文件夹。
+**Windows 最省事：跑安装程序。** 下载 `Pulsewright-Setup-1.1.5.exe` 双击。它会读出你机器上所有登记过的库列出来，选一个点「安装到这个库」就完事。列表里没有你的库，就点「浏览其他库…」自己选文件夹。
 
 装完打开 Obsidian → 设置 → 第三方插件 → 关掉「安全模式 / 受限模式」→ 启用 Pulsewright。如果 Obsidian 本来就开着，`Ctrl + R` 重新加载一下。
 
 安装器没有数字签名，Windows 的 SmartScreen 大概率会拦一下，点「更多信息」→「仍要运行」就行。它只做一件事：把三个文件复制进你选的库的 `.obsidian/plugins/pulsewright/`。不写注册表，不装服务，不改系统设置。
 
-**其他系统：解压压缩包。** 下载 `pulsewright-1.1.0.zip`，解压出一个 `pulsewright` 文件夹，里面是插件本体和一份《安装说明.txt》。然后：
+**其他系统：解压压缩包。** 下载 `pulsewright-1.1.5.zip`，解压出一个 `pulsewright` 文件夹，里面是插件本体和一份《安装说明.txt》。然后：
 
 1. 找到你的库目录，就是放 `.md` 文件的那个文件夹
 2. 进 `.obsidian/plugins/`（没有 `plugins` 就自己建一个）
@@ -379,9 +381,9 @@ CI 在 `.github/workflows/test.yml`，`ubuntu-latest` + Node 20，跑 `node --ch
 
 ## 版本与环境
 
-当前 `1.1.0`。最低 Obsidian `1.6.0`（`manifest.json` 的 `minAppVersion`）。桌面和移动端都能跑。运行时用的是 Electron 内置的 Node，你本机不需要装 Node——只有想跑测试的时候才需要，`>=18`。
+当前 `1.1.5`。最低 Obsidian `1.6.0`（`manifest.json` 的 `minAppVersion`）。桌面和移动端都能跑。运行时用的是 Electron 内置的 Node，你本机不需要装 Node——只有想跑测试的时候才需要，`>=18`。
 
-零运行时依赖，`package.json` 里没有 `dependencies` 这一节。`main.js` 约 177 KB，`styles.css` 约 50 KB。
+零运行时依赖，`package.json` 里没有 `dependencies` 这一节。`main.js` 约 191 KB，`styles.css` 约 52 KB。
 
 Zotero 端支持 **7.0 – 10.x**，没有官方插件目录，只能手动装 `.xpi`；六问面板在 Zotero **10.0.8** 上实测过。
 
