@@ -588,7 +588,7 @@ ok('fmtDur 小时', P.fmtDur(7200) === '2.0 小时');
   ok('echoLead 空文本', P.echoLead('') === '');
   ok('echoLead 超长截断', P.echoLead('很长的句子'.repeat(20), 10).endsWith('…'));
 
-  // ---------- 1.2.0：周报成图 ----------
+  // ---------- 1.1.5：周报成图 ----------
   {
     const wk = {};
     const mon = new Date(2026, 10, 2);
@@ -622,7 +622,7 @@ ok('fmtDur 小时', P.fmtDur(7200) === '2.0 小时');
     ok('周报文字带区间', P.shareText(wp).indexOf('本周') > 0);
   }
 
-  // ---------- 1.2.0：空库引导与示例数据 ----------
+  // ---------- 1.1.5：空库引导与示例数据 ----------
   ok('空库判定', P.isVaultEmpty({}) === true);
   ok('空库判定 null', P.isVaultEmpty(null) === true);
   ok('有笔记就不算空', P.isVaultEmpty({ noteCache: { 'a.md': {} }, daily: {} }) === false);
@@ -665,7 +665,7 @@ ok('fmtDur 小时', P.fmtDur(7200) === '2.0 小时');
     ok('速记命令触发了 render', (fakeView.rendered || 0) >= 1, String(fakeView.rendered));
   }
   ok('插件实例上无 tab 字段', typeof plugin.tab === 'undefined', String(plugin.tab));
-  // ---------- 1.2.0：示例数据切换，且一次都不落盘 ----------
+  // ---------- 1.1.5：示例数据切换，且一次都不落盘 ----------
   {
     const real = plugin.data;
     const savedBefore = JSON.stringify(plugin._data);

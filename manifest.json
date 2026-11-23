@@ -1,7 +1,7 @@
 {
   "id": "pulsewright",
   "name": "Pulsewright",
-  "version": "1.2.0",
+  "version": "1.1.5",
   "minAppVersion": "1.6.0",
   "description": "本地知识脉冲：惦记你在意的事有没有断，加知识地层、月相日历、年度画像、知识复盘、笔记地图、分享卡、周报成图。全部本地计算，无授权校验.",
   "author": "Luo",
