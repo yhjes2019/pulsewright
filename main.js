@@ -1309,7 +1309,9 @@ function shareCardSvg(o) {
   const by = 812;
   const bh = 196;
   const step = bars.length ? bw / bars.length : bw;
-  const barW = Math.max(3, Math.min(20, step - 4));
+  /* 30 天的柱子细一点，7 天的柱子给宽一点：上限跟着根数走，不写死。 */
+  const barCap = bars.length <= 10 ? 46 : 20;
+  const barW = Math.max(3, Math.min(barCap, step - 4));
   let rects = '';
   for (let i = 0; i < bars.length; i++) {
     const v = (bars[i] && bars[i].v) || 0;
@@ -1393,6 +1395,137 @@ function shareText(o) {
   lines.push('');
   lines.push('你的知识，有自己的脉搏。');
   return lines.join('\n');
+}
+
+/* ---------------- 周报成图 ---------------- */
+
+/* 本周的起止：周一 00:00 到周日（本地时区）。 */
+function weekWindow(nowMs) {
+  const now = (typeof nowMs === 'number' && isFinite(nowMs)) ? nowMs : Date.now();
+  const start = startOfWeek(new Date(now));
+  return { start: start, end: addDays(start, 6) };
+}
+
+/* 周报卡的数字：口径和「今天」页里那一周完全一致。
+ * 不复用 sharePayload，因为天数换成 7 之后分母就不对了。 */
+function weekPayload(daily, nowMs) {
+  const now = (typeof nowMs === 'number' && isFinite(nowMs)) ? nowMs : Date.now();
+  const win = weekWindow(now);
+  const list = daysInWindow(daily || {}, win.start, win.end);
+  const sum = summarize(list);
+  const st = streaks(daily || {});
+  const s = win.start;
+  const e = win.end;
+  return {
+    score: sum.score,
+    active: sum.active,
+    days: 7,
+    words: sum.words,
+    notes: sum.notes,
+    links: sum.links,
+    streak: st.current,
+    best: sum.best,
+    bestKey: sum.bestKey,
+    range: '本周 ' + (s.getMonth() + 1) + '/' + s.getDate() + '\u2013' + (e.getMonth() + 1) + '/' + e.getDate(),
+    /* 这一周还没过完就写今天，别把还没到的周日写成「截至」。 */
+    today: dayKeyOf(Math.min(now, e.getTime())),
+    bars: list.map(function (it) { return { v: (it.entry && it.entry.score) || 0 }; })
+  };
+}
+
+/* ---------------- 首次上手：空库引导与示例数据 ---------------- */
+
+/* 一眼判断这个库是不是还没被统计过。
+ * 两个都为 0 才算空：只有 noteCache 空但 daily 有历史，说明以前扫到过东西，不该再给引导。 */
+function isVaultEmpty(d) {
+  if (!d) return true;
+  return Object.keys(d.noteCache || {}).length === 0 && Object.keys(d.daily || {}).length === 0;
+}
+
+/* 示例数据只用来给空库看个样子，全部是假的，不进任何文件。 */
+const DEMO_NOTES = [
+  ['肖邦 Op.10 No.1 的触键笔记', ['练琴', '肖邦']],
+  ['巴赫 BWV847 的声部走向', ['练琴', '巴赫']],
+  ['海顿 XVI:50 第一乐章结构', ['练琴', '海顿']],
+  ['车尔尼 740 No.11 的换指', ['练琴', '车尔尼']],
+  ['和声学：终止式的几种收法', ['和声', '笔记']],
+  ['中国古代音乐史 复习提纲', ['音乐史']],
+  ['曲式分析：奏鸣曲式的展开部', ['曲式']],
+  ['视唱练耳：音程听辨错题', ['视唱练耳']],
+  ['一次演出的后台记录', ['演出']],
+  ['十一月练琴日志', ['练琴', '日志']],
+  ['读书：怎么读一本难书', ['阅读', '方法']],
+  ['文献综述的第一版', ['写作']],
+  ['关于注意力的一点想法', ['随想']],
+  ['周末在福州', ['生活']],
+  ['复调写作的几条规矩', ['复调']],
+  ['明天要做的三件事', ['待办']]
+];
+
+/* 生成一份可预览的数据：全部用整数运算推出来，同一天打开看到的是同一份。 */
+function demoBundle(nowMs) {
+  const now = (typeof nowMs === 'number' && isFinite(nowMs)) ? nowMs : Date.now();
+  const today = startOfDay(new Date(now));
+  const cap = DEFAULT_SETTINGS.scoreCap;
+  const daily = {};
+  /* 90 天：工作日密、周末疏，另留三个空档 —— 有断点，热力图和「连续」才有意义。 */
+  for (let i = 89; i >= 0; i--) {
+    if (i === 12 || i === 33 || i === 58) continue;
+    const d = addDays(today, -i);
+    const dow = d.getDay();
+    const wob = ((i * 37 + 11) % 29) / 29;
+    const weight = (dow === 0 || dow === 6) ? 0.42 : 1;
+    const words = Math.round(weight * (150 + 780 * wob));
+    if (words < 60) continue;
+    const e = emptyDaily();
+    e.words = words;
+    e.notes = wob > 0.78 ? 1 : 0;
+    e.links = Math.round(wob * 3);
+    e.revisions = 1 + ((i * 3) % 4);
+    e.focusSec = Math.round(words / 11 + 120 * wob);
+    e.interactSec = Math.round(e.focusSec * 0.35);
+    e.live = true;
+    e.timeQuality = 'measured';
+    e.score = computeScore(e, cap);
+    daily[dayKeyOf(d.getTime())] = e;
+  }
+
+  const noteCache = {};
+  const paths = DEMO_NOTES.map(function (it) { return '示例/' + it[0] + '.md'; });
+  for (let i = 0; i < DEMO_NOTES.length; i++) {
+    const d = addDays(today, -(i * 5 + 2));
+    const words = 180 + ((i * 137) % 900);
+    noteCache[paths[i]] = {
+      created: d.getTime(),
+      mtime: d.getTime() + 3600000,
+      words: words,
+      links: i % 4,
+      bytes: words * 3,
+      title: DEMO_NOTES[i][0],
+      tags: DEMO_NOTES[i][1],
+      /* 每篇链两篇；最后一篇故意链一个不存在的目标，断链页才有东西看。 */
+      linkTargets: i === DEMO_NOTES.length - 1
+        ? ['不存在的笔记']
+        : [DEMO_NOTES[(i + 1) % DEMO_NOTES.length][0], DEMO_NOTES[(i + 3) % DEMO_NOTES.length][0]]
+    };
+  }
+
+  return {
+    daily: daily,
+    noteCache: noteCache,
+    memos: [
+      { ts: dayKeyOf(addDays(today, -1).getTime()) + ' 21:12', text: '明天先练左手八度，别急着提速。' },
+      { ts: dayKeyOf(today.getTime()) + ' 09:04', text: '把上周的错题过一遍。' }
+    ],
+    liveDays: {},
+    sessions: {},
+    installedAt: addDays(today, -89).getTime(),
+    lastScan: now - 60000,
+    lastScanMs: 42,
+    lastScanRead: 0,
+    viewState: null,
+    demo: true
+  };
 }
 
 /* ---------------- 惦记：你在意的事，有没有停 ---------------- */
@@ -1870,6 +2003,10 @@ const PURE = {
   viewSignature: viewSignature,
   shareCardSvg: shareCardSvg,
   shareText: shareText,
+  weekWindow: weekWindow,
+  weekPayload: weekPayload,
+  isVaultEmpty: isVaultEmpty,
+  demoBundle: demoBundle,
   laneMatch: laneMatch,
   laneStats: laneStats,
   laneSeries: laneSeries,
@@ -2125,6 +2262,10 @@ class PulseView extends ItemView {
       + '    <button class="kp-btn" data-act="rescan" title="重新扫描">刷新</button>'
       + '  </div>'
       + '</header>'
+      + (this.plugin.demo
+        ? '<div class="kp-demo-bar"><b>示例数据</b><span>这不是你的库，只存在于内存里。</span>'
+          + '<button class="kp-btn" data-act="demo-off">回到我的库</button></div>'
+        : '')
       + '<div class="kp-switch">'
       + '  <button class="kp-switch-now" data-act="all">' + nowName + '<span class="kp-caret">▾</span></button>'
       + '  <p class="kp-now-hint"></p>'
@@ -2217,6 +2358,8 @@ class PulseView extends ItemView {
         Promise.resolve(self.plugin.saveSettings()).then(function () { self.render(); });
       });
     });
+    const demoOff = shell.querySelector('[data-act="demo-off"]');
+    if (demoOff) demoOff.addEventListener('click', function () { self.plugin.setDemo(false); });
     const rescanBtn = shell.querySelector('[data-act="rescan"]');
     if (rescanBtn) rescanBtn.addEventListener('click', async function () {
       rescanBtn.textContent = '扫描中…';
@@ -2262,6 +2405,12 @@ class PulseView extends ItemView {
 
   /* 一屏之内把该看的看完：今天怎么样、这周怎么样、最近有没有断、能动手做点什么。 */
   renderToday(body) {
+    /* 空库先给一张「你现在能做什么」，而不是一屏 0 和「还没有索引到笔记」。 */
+    if (!this.plugin.demo && isVaultEmpty(this.plugin.data)) {
+      body.innerHTML = this.welcomeCard();
+      this.bindWelcome(body);
+      return;
+    }
     const daily = this.daily();
     const st = streaks(daily);
     const today = startOfDay(new Date());
@@ -2356,6 +2505,10 @@ class PulseView extends ItemView {
       + '    <div class="kp-op-week-hd"><span>最近七天</span><em>共 ' + fmtInt(wkSum) + ' 字</em></div>'
       + '    <div class="kp-wk">' + wkBars.join('') + '</div>'
       + '    ' + weekRecapLine
+      + '    <div class="kp-wk-acts">'
+      + '      <button class="kp-btn" data-act="week-card">导出这一周的图</button>'
+      + '      <button class="kp-btn" data-act="week-text">复制周报文字</button>'
+      + '    </div>'
       + '  </div>'
       + '</section>'
       + this.todayCard()
@@ -2363,6 +2516,45 @@ class PulseView extends ItemView {
 
     this.bindTodayCard(body);
     this.fillEcho(body, picks);
+  }
+
+  /* 空库首屏：三步 + 一个可以随便翻的示例。不写「暂无数据」。 */
+  welcomeCard() {
+    const scanning = !(this.plugin.data && this.plugin.data.lastScan);
+    return '<section class="kp-card kp-welcome">'
+      + '  <h3>先跑起来，只要三步</h3>'
+      + '  <ol class="kp-steps">'
+      + '    <li><b>写点什么</b><span>新建一篇笔记，哪怕只有一行。</span></li>'
+      + '    <li><b>回来看一眼</b><span>这里会记下今天写了多少字、动了哪几篇。</span></li>'
+      + '    <li><b>攒够几天</b><span>概览、知识地层、月相日历会自己长出来。</span></li>'
+      + '  </ol>'
+      + '  <div class="kp-row-actions">'
+      + '    <button class="kp-btn kp-btn-primary" data-act="new-note">新建一篇笔记</button>'
+      + '    <button class="kp-btn" data-act="demo-on">先看看示例数据</button>'
+      + '  </div>'
+      + '  <p class="kp-hint">' + (scanning
+        ? '正在扫一遍你的库，扫完这里会自己变。'
+        : '示例数据只在空库里出现，只存在内存里，不会写进你的数据文件，也不会进分享卡。')
+      + '  </p>'
+      + '</section>'
+      + '<section class="kp-card">'
+      + '  <h3>如果你明明有笔记</h3>'
+      + '  <p class="kp-hint">检查「设置 → Pulsewright」里的<b>排除目录</b>和<b>排除 frontmatter 字段</b>：'
+      + '默认会跳过 <code>.obsidian</code>、<code>.trash</code>、<code>templates</code>，路径多写一个字就整片跳过。</p>'
+      + '</section>';
+  }
+
+  bindWelcome(body) {
+    const self = this;
+    const nu = body.querySelector('[data-act="new-note"]');
+    if (nu) nu.addEventListener('click', function () {
+      /* 走 Obsidian 自己的新建流程：文件名和位置由用户决定，不替他建。 */
+      const cmd = self.app && self.app.commands;
+      if (cmd && typeof cmd.executeCommandById === 'function' && cmd.executeCommandById('file-explorer:new-file')) return;
+      new Notice('从左侧文件列表里新建一篇笔记就行。');
+    });
+    const demo = body.querySelector('[data-act="demo-on"]');
+    if (demo) demo.addEventListener('click', function () { self.plugin.setDemo(true); });
   }
 
   /* 一屏里唯一一张卡：一篇你很久没打开、但当时写得不少的笔记。 */
@@ -2429,6 +2621,11 @@ class PulseView extends ItemView {
 
   bindTodayCard(body) {
     const self = this;
+    /* 周报那两个按钮在「今天」页最下面，先绑，跟卡片在不在无关。 */
+    const weekCard = body.querySelector('[data-act="week-card"]');
+    if (weekCard) weekCard.addEventListener('click', function () { self.plugin.exportWeekCard(); });
+    const weekText = body.querySelector('[data-act="week-text"]');
+    if (weekText) weekText.addEventListener('click', function () { self.plugin.copyWeekText(); });
     /* 「今天挑完了」那张卡没有 .kp-today-card，所以先绑它，再判断卡片在不在。 */
     const reset = body.querySelector('[data-reset]');
     if (reset) {
@@ -3423,32 +3620,52 @@ class PulseView extends ItemView {
       + '  <p class="kp-hint">数据来源：frontmatter 的 <code>created</code> 算新建，文件修改时间算修订，正文按中日韩字符＋英文词计数，'
       + '单篇最多计入 ' + (this.plugin.settings.maxWordsPerNote || 4000) + ' 词（防止超长逐字稿把一天的分值撑爆）。</p>'
       + '</section>'
-      + '<section class="kp-card">'
-      + '  <h3>导出与维护</h3>'
-      + '  <div class="kp-row-actions">'
-      + '    <button class="kp-btn kp-btn-primary" data-act="csv">导出 CSV</button>'
-      + '    <button class="kp-btn" data-act="json">导出 JSON</button>'
-      + '    <button class="kp-btn" data-act="backup">备份数据</button>'
-      + '    <button class="kp-btn" data-act="rebuild">重建索引</button>'
-      + '  </div>'
-      + '  <p class="kp-hint">导出文件写到 <code>' + escapeHtml(this.plugin.settings.dataFolder) + '/导出/</code>。</p>'
-      + '</section>'
-      + '<section class="kp-card kp-share-card">'
-      + '  <h3>分享</h3>'
-      + '  <p class="kp-hint">按当前区间（' + escapeHtml((RANGES.filter(function (r) { return r.id === this.range; }, this)[0] || {}).name || '近 30 天') + '）生成一张 1080×1440 的卡片，只含统计数字，不含任何笔记正文。</p>'
-      + '  <div class="kp-row-actions">'
-      + '    <button class="kp-btn kp-btn-primary" data-act="share-card">导出分享卡</button>'
-      + '    <button class="kp-btn" data-act="share-text">复制分享文案</button>'
-      + '  </div>'
-      + '  <p class="kp-hint">卡片同时导出 PNG（1080×1440）和 SVG，存到 <code>' + escapeHtml(this.plugin.settings.dataFolder) + '/导出/</code>；PNG 可以直接发小红书。</p>'
-      + '</section>';
+      + (this.plugin.demo
+        ? '<section class="kp-card"><h3>示例数据</h3>'
+          + '<p class="kp-hint">示例数据只存在内存里，导出、备份、分享这些动作先关掉；点顶部「回到我的库」就恢复。</p>'
+          + '<p class="kp-hint">在示例里可以随便翻：概览、知识地层、月相日历、笔记地图看到的都是这一份假数据。</p>'
+          + '</section>'
+        : ('<section class="kp-card">'
+          + '  <h3>导出与维护</h3>'
+          + '  <div class="kp-row-actions">'
+          + '    <button class="kp-btn kp-btn-primary" data-act="csv">导出 CSV</button>'
+          + '    <button class="kp-btn" data-act="json">导出 JSON</button>'
+          + '    <button class="kp-btn" data-act="backup">备份数据</button>'
+          + '    <button class="kp-btn" data-act="rebuild">重建索引</button>'
+          + '  </div>'
+          + '  <p class="kp-hint">导出文件写到 <code>' + escapeHtml(this.plugin.settings.dataFolder) + '/导出/</code>。</p>'
+          + '</section>'
+          + '<section class="kp-card kp-share-card">'
+          + '  <h3>分享</h3>'
+          + '  <p class="kp-hint">按当前区间（' + escapeHtml((RANGES.filter(function (r) { return r.id === this.range; }, this)[0] || {}).name || '近 30 天') + '）生成一张 1080×1440 的卡片，只含统计数字，不含任何笔记正文。</p>'
+          + '  <div class="kp-row-actions">'
+          + '    <button class="kp-btn kp-btn-primary" data-act="share-card">导出分享卡</button>'
+          + '    <button class="kp-btn" data-act="share-text">复制分享文案</button>'
+          + '  </div>'
+          + '  <p class="kp-hint">卡片同时导出 PNG（1080×1440）和 SVG，存到 <code>' + escapeHtml(this.plugin.settings.dataFolder) + '/导出/</code>；PNG 可以直接发小红书。</p>'
+          + '</section>'
+          + '<section class="kp-card">'
+          + '  <h3>周报</h3>'
+          + '  <p class="kp-hint">把这一周（周一到周日）压成一张 1080×1440 的图，只含统计数字；文字版和大段复盘同口径。</p>'
+          + '  <div class="kp-row-actions">'
+          + '    <button class="kp-btn kp-btn-primary" data-act="week-card">导出这一周的图</button>'
+          + '    <button class="kp-btn" data-act="week-text">复制周报文字</button>'
+          + '  </div>'
+          + '</section>'));
     const self = this;
-    body.querySelector('[data-act="csv"]').addEventListener('click', function () { self.plugin.exportCSV(); });
-    body.querySelector('[data-act="json"]').addEventListener('click', function () { self.plugin.exportJSON(); });
-    body.querySelector('[data-act="backup"]').addEventListener('click', function () { self.plugin.backupData(); });
-    body.querySelector('[data-act="share-card"]').addEventListener('click', function () { self.plugin.exportShareCard(self.range); });
-    body.querySelector('[data-act="share-text"]').addEventListener('click', function () { self.plugin.copyShareText(self.range); });
-    body.querySelector('[data-act="rebuild"]').addEventListener('click', async function () {
+    /* 示例数据下这几个按钮根本不渲染，统一走 on()，省掉每处判空。 */
+    const on = function (sel, fn) {
+      const el = body.querySelector(sel);
+      if (el) el.addEventListener('click', fn);
+    };
+    on('[data-act="csv"]', function () { self.plugin.exportCSV(); });
+    on('[data-act="json"]', function () { self.plugin.exportJSON(); });
+    on('[data-act="backup"]', function () { self.plugin.backupData(); });
+    on('[data-act="share-card"]', function () { self.plugin.exportShareCard(self.range); });
+    on('[data-act="share-text"]', function () { self.plugin.copyShareText(self.range); });
+    on('[data-act="week-card"]', function () { self.plugin.exportWeekCard(); });
+    on('[data-act="week-text"]', function () { self.plugin.copyWeekText(); });
+    on('[data-act="rebuild"]', async function () {
       await self.plugin.rescan(true);
       self.renderBodyOnly();
     });
@@ -3971,6 +4188,8 @@ class PulsewrightPlugin extends Plugin {
   }
 
   async persist() {
+    /* 示例数据绝不落盘：一次都不写，data.json 保持原样。 */
+    if (this.demo) return;
     this.data.settings = this.settings;
     await this.saveData(this.data);
   }
@@ -3979,6 +4198,21 @@ class PulsewrightPlugin extends Plugin {
    * 所以走 rescan(false)：命中 mtime 缓存，不重读任何文件，只重算分数与视图。 */
   applySettings() {
     this.rescan(false).then(function () { this.refreshViews(); }.bind(this));
+  }
+
+  /* 示例数据：只换内存里的 data 指针，不写任何文件，也不碰真实索引。
+   * 空库第一次打开时给个样子，随时一键退回。 */
+  setDemo(on) {
+    if (on) {
+      if (!this._realData) this._realData = this.data;
+      this.demo = true;
+      this.data = demoBundle(Date.now());
+    } else {
+      this.demo = false;
+      if (this._realData) this.data = this._realData;
+      this._realData = null;
+    }
+    this.refreshViews(true);
   }
 
   /* ---- 扫描 ---- */
@@ -3995,6 +4229,8 @@ class PulsewrightPlugin extends Plugin {
   }
 
   async rescan(force) {
+    /* 示例数据期间不扫真库，也不覆盖它：切回来还是原来那份。 */
+    if (this.demo) return null;
     if (this._scanning) return this._scanPromise;
     this._scanning = true;
     const self = this;
@@ -4387,18 +4623,43 @@ class PulsewrightPlugin extends Plugin {
     }
   }
 
-  async copyShareText(rangeId) {
-    const text = shareText(this.sharePayload(rangeId));
+  /* 复制到剪贴板；剪贴板不可用就落成 txt，不静默失败。 */
+  async copyText(text, okMsg, fileTag) {
     try {
       if (typeof navigator === 'undefined' || !navigator.clipboard) throw new Error('no clipboard');
       await navigator.clipboard.writeText(text);
-      new Notice('分享文案已复制到剪贴板');
+      new Notice(okMsg);
       return text;
     } catch (e) {
       const stamp = dayKeyToday().replace(/-/g, '');
-      const path = await this.writeVaultFile('导出/Pulsewright-分享文案-' + stamp + '.txt', text);
+      const path = await this.writeVaultFile('导出/Pulsewright-' + fileTag + '-' + stamp + '.txt', text);
       new Notice('剪贴板不可用，文案已写到 ' + path);
       return text;
+    }
+  }
+
+  async copyShareText(rangeId) {
+    return this.copyText(shareText(this.sharePayload(rangeId)), '分享文案已复制到剪贴板', '分享文案');
+  }
+
+  async copyWeekText() {
+    return this.copyText(shareText(weekPayload(this.data && this.data.daily, Date.now())), '周报文字已复制到剪贴板', '周报文案');
+  }
+
+  /* 周报图：和分享卡同一套画法，只是区间换成周一到周日、柱子换成七根。
+   * 一样只画统计数字，不碰任何笔记标题。 */
+  async exportWeekCard() {
+    const stamp = dayKeyToday().replace(/-/g, '');
+    const svg = shareCardSvg(weekPayload(this.data && this.data.daily, Date.now()));
+    const svgPath = await this.writeVaultFile('导出/Pulsewright-周报-' + stamp + '.svg', svg);
+    try {
+      const png = await this.svgToPng(svg, 1080, 1440);
+      const pngPath = await this.writeVaultBinary('导出/Pulsewright-周报-' + stamp + '.png', png);
+      new Notice('周报图已导出 ' + pngPath);
+      return pngPath;
+    } catch (e) {
+      new Notice('PNG 转换失败，已保留 SVG：' + svgPath);
+      return svgPath;
     }
   }
 }

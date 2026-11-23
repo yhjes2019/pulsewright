@@ -56,6 +56,8 @@ Obsidian 自带的反向链接和图谱解决不了这些。市面上的同类�
 
 最下面一张卡只做一件事：给你一篇现在就能动手的笔记。优先挑「写过 50 词以上、超过 30 天没动」的旧账；库里没有旧账，就推最近在写的那篇。两个按钮：「接着写」直接打开，「先放着」换下一篇并记住。放下的都算今天放下过——按钮底下会出现一行「今天放下了 N 篇 · 恢复」，点一下全放回来；全放下之后它会说「今天挑完了」，明天再给你看。
 
+这一周过完你要是想留个记录，页面最下面有两个按钮：导出这一周的图，或者复制一段周报文字。图上只有七个数字，没有你的任何标题。
+
 卡片再往下是**回声**：一年前、一个月前、三年前的同一天附近各挑一篇，摘第一句话放在这里，点标题跳回原文。库里还没有够老的笔记时，这一块会自己说「等它长大一点」，不会硬凑。
 
 **惦记** —— 你自己说要在意的几件事。一行一条 `名称 | 匹配 | 每周几次`，它画成一条 12 周的时间带：哪天动过就亮一格，缺一块就是那几天没碰。某条线超过自己节奏的两倍时间没动，底下会出一张小卡片，除了告诉你安静了几天，还给你两个出口——「打开那篇」，或者「记一笔推迟」（直接写进速记）。被催着和被提醒着，是两种感觉。
@@ -113,6 +115,14 @@ Obsidian 自带的反向链接和图谱解决不了这些。市面上的同类�
 
 </details>
 
+## 第一次打开
+
+如果你刚装好、库里还没索引到东西，「今天」页不会给你一屏 0。它给一张三步卡：写点什么、回来看一眼、攒够几天。下面还有一张卡解释最容易踩的坑——明明有笔记却显示为空，通常是设置里的**排除目录**多写了一个字。
+
+想先看看长什么样，卡上有个「先看看示例数据」：立刻用一份假的九十天数据把所有页面点亮，概览、地层、月相、地图随便翻。顶部会一直挂一条横幅提醒这不是你的库，点「回到我的库」就回来。
+
+示例数据只存在于内存：不写 `data.json`、不进历史、不进导出和备份、不进分享卡和周报；待在示例里的时候它连你的库都不扫，所以不会覆盖真实索引。
+
 ## 分享卡
 
 数据页最底下那张卡可以导出：一张 1080×1440 的 PNG，加一份同版 SVG，落在 `<数据目录>/导出/`。也可以只复制文案，粘到哪儿都行（剪贴板拿不到的时候会退化成写一个 `.txt`）。
@@ -122,6 +132,14 @@ Obsidian 自带的反向链接和图谱解决不了这些。市面上的同类�
 没有一条笔记的标题，也没有一句正文。分享出去的是你的节奏，不是你的内容——这点我特意这么设计的，否则这功能我不敢做。
 
 PNG 是拿 canvas 现转的，不用装任何东西。万一某个环境里拿不到 canvas，SVG 会留下来并提示你一句。
+
+## 周报
+
+和分享卡同一套画法，只把区间换成周一到周日、柱子换成七根。两个入口：「今天」页最下面、「数据」页最后一张卡。
+
+图上还是只有数字：这一周的贡献分、活跃几天、写了多少字、动了几篇、加了几个链接、连着写了几天、最好的一天。文字版是同一份口径的纯文本，粘到周记、月报、群里都行。
+
+周报卡和分享卡都不会写进任何笔记标题。如果你只是想要一张能发出去的东西，这两个按钮是同一件事的两种尺寸。
 
 ## Zotero 端
 
@@ -308,7 +326,8 @@ CSV 的列是 `date,score,words,notes,links,revisions,focus_sec,interact_sec,qua
 6. **首次扫描会卡一下。** 15 分钟那次自动重扫是全量的，库特别大（几千篇）的话建议关掉 `trackLive`，只用「刷新」按钮手动扫。
 7. **历史保留期裁剪不可逆。** 填了正整数，超出天数的旧数据直接删，不弹确认。想留全量就保持 `0`。
 8. **「最厚重的笔记」是个启发式。** 按词数加内链估的，不代表内容价值。想按别的口径排，改 `topNotes` 里的 `weight` 就行。
-9. **分享卡 PNG 靠 canvas 现转。** 桌面和移动端都有 canvas，正常情况下没问题；万一某个环境拿不到，会保留同版 SVG 并提示，不会静默失败。
+9. **示例数据只在空库出现。** 它出现的条件是「索引为空」，所以你要是以前扫到过东西、后来又清空了笔记，它不会再自动跳出来；想再看一眼，得把 `data.json` 移走重启一次。
+10. **分享卡 PNG 靠 canvas 现转。** 桌面和移动端都有 canvas，正常情况下没问题；万一某个环境拿不到，会保留同版 SVG 并提示，不会静默失败。
 
 ## 常见问题
 
@@ -421,6 +440,14 @@ Three appearance controls: **scene** (pixel / ink / minimal / star), **material*
 ### Share card
 
 The bottom of the Data tab exports a 1080×1440 PNG plus a matching SVG into `<data folder>/导出/`, or copies the text to the clipboard (falling back to a `.txt` file when the clipboard is unavailable). The card carries eight numbers: range and end date, total score, active days, new words, new notes, current streak, a daily-rhythm bar chart, and the best day. Not one note title, not one line of body text — what you share is your rhythm, not your content.
+
+### Weekly card
+
+The same renderer as the share card, with the window pinned to Monday–Sunday and seven bars instead of thirty. Two buttons at the bottom of the Today page and on the Data page: export the week as a 1080×1440 image, or copy the week as plain text. Seven numbers, no note titles.
+
+### First run
+
+An empty vault does not meet you with a wall of zeros. The Today page shows a three-step card (write something / come back / let it accumulate), plus a card explaining the most common false alarm: notes exist but are excluded by a folder filter. A "show me sample data" button lights up every page with ninety days of synthetic activity held purely in memory — it never touches `data.json`, never enters exports or backups, never reaches the cards, and pauses scanning while it is on.
 
 ### Scoring
 

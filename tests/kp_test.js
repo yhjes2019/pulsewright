@@ -588,6 +588,61 @@ ok('fmtDur 小时', P.fmtDur(7200) === '2.0 小时');
   ok('echoLead 空文本', P.echoLead('') === '');
   ok('echoLead 超长截断', P.echoLead('很长的句子'.repeat(20), 10).endsWith('…'));
 
+  // ---------- 1.2.0：周报成图 ----------
+  {
+    const wk = {};
+    const mon = new Date(2026, 10, 2);
+    for (let i = 0; i < 7; i++) {
+      const k = P.dayKeyOf(P.addDays(mon, i).getTime());
+      if (i < 5) {
+        wk[k] = {
+          words: 200, notes: 0, links: 0, revisions: 0, focusSec: 300,
+          interactSec: 0, live: false, score: 10, timeQuality: 'estimated', touched: []
+        };
+      }
+    }
+    const nowThu = new Date(2026, 10, 5).getTime();
+    const win = P.weekWindow(nowThu);
+    ok('weekWindow 从周一开始', P.dayKeyOf(win.start.getTime()) === '2026-11-02', P.dayKeyOf(win.start.getTime()));
+    ok('weekWindow 到周日结束', P.dayKeyOf(win.end.getTime()) === '2026-11-08', P.dayKeyOf(win.end.getTime()));
+
+    const wp = P.weekPayload(wk, nowThu);
+    ok('weekPayload 固定七天', wp.days === 7, String(wp.days));
+    ok('weekPayload 活跃五天', wp.active === 5, String(wp.active));
+    ok('weekPayload 分数 50', wp.score === 50, String(wp.score));
+    ok('weekPayload 七根柱', wp.bars.length === 7, String(wp.bars.length));
+    ok('weekPayload 区间从「本周」起', wp.range.indexOf('本周') === 0, wp.range);
+    ok('weekPayload 截止到今天而不是未来的周日', wp.today === '2026-11-05', wp.today);
+
+    const weekSvg = P.shareCardSvg(wp);
+    ok('周报卡是 SVG', weekSvg.indexOf('<svg') === 0);
+    ok('周报卡七根柱变宽', weekSvg.indexOf('width="46"') > 0, 'no 46');
+    const monthSvg = P.shareCardSvg({ bars: new Array(30).fill({ v: 5 }) });
+    ok('三十天柱宽仍是 20', monthSvg.indexOf('width="20"') > 0, 'no 20');
+    ok('周报文字带区间', P.shareText(wp).indexOf('本周') > 0);
+  }
+
+  // ---------- 1.2.0：空库引导与示例数据 ----------
+  ok('空库判定', P.isVaultEmpty({}) === true);
+  ok('空库判定 null', P.isVaultEmpty(null) === true);
+  ok('有笔记就不算空', P.isVaultEmpty({ noteCache: { 'a.md': {} }, daily: {} }) === false);
+  ok('有历史也不算空', P.isVaultEmpty({ noteCache: {}, daily: { '2026-11-01': {} } }) === false);
+
+  {
+    const demo = P.demoBundle(new Date(2026, 10, 5).getTime());
+    const days = Object.keys(demo.daily).slice().sort();
+    ok('示例数据天数够用', days.length >= 60, String(days.length));
+    ok('示例数据笔记条数', Object.keys(demo.noteCache).length === 16, String(Object.keys(demo.noteCache).length));
+    ok('示例数据两条速记', demo.memos.length === 2, String(demo.memos.length));
+    ok('示例数据不打到未来', days[days.length - 1] <= '2026-11-05', days[days.length - 1]);
+    ok('示例数据每天都有分', days.every(function (k) { return demo.daily[k].score > 0; }));
+    ok('示例数据带 demo 标记', demo.demo === true);
+    ok('示例数据没写设置', typeof demo.settings === 'undefined');
+    ok('示例数据留了空档', days.indexOf('2026-10-24') < 0, 'gap missing');
+    const one = demo.noteCache[Object.keys(demo.noteCache)[0]];
+    ok('示例笔记字段齐', typeof one.title === 'string' && typeof one.mtime === 'number' && Array.isArray(one.tags));
+  }
+
   // ---------- 命令：速记一条 必须真的切到 memo 页 ----------
   const cmds = {};
   plugin.addCommand = (c) => { cmds[c.id] = c; };
@@ -610,6 +665,22 @@ ok('fmtDur 小时', P.fmtDur(7200) === '2.0 小时');
     ok('速记命令触发了 render', (fakeView.rendered || 0) >= 1, String(fakeView.rendered));
   }
   ok('插件实例上无 tab 字段', typeof plugin.tab === 'undefined', String(plugin.tab));
+  // ---------- 1.2.0：示例数据切换，且一次都不落盘 ----------
+  {
+    const real = plugin.data;
+    const savedBefore = JSON.stringify(plugin._data);
+    plugin.setDemo(true);
+    ok('示例数据已切上', plugin.demo === true);
+    ok('示例数据有内容', Object.keys(plugin.data.daily).length > 0);
+    ok('真实数据指针被记住', plugin._realData === real);
+    await plugin.persist();
+    ok('示例数据不落盘', JSON.stringify(plugin._data) === savedBefore, 'data.json 被改了');
+    plugin.setDemo(false);
+    ok('退出示例数据', plugin.demo === false, String(plugin.demo));
+    ok('退出后数据指针复原', plugin.data === real);
+    ok('退出后清掉暂存指针', !plugin._realData);
+  }
+
 
   console.log('\n===== RESULT =====');
   console.log('pass: ' + pass + '  fail: ' + fail);
